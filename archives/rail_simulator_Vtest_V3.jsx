@@ -380,7 +380,6 @@ function CostPanel(props) {
     );
   }
 
-
   return (
     <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:16}}>
       <div style={{overflowY:"auto",maxHeight:680,paddingRight:8}}>
@@ -619,12 +618,12 @@ function GrindPanel(props) {
   var horizon   = props.horizon;
   var context   = props.context;
 
-  const [machineKey, setMachine]  = useState(props.initMachine || "line");
-  const [mode,       setMode]     = useState(props.initMode    || "sub");
-  const [region,     setRegion]   = useState(props.initRegion  || "WEU");
+  const [machineKey, setMachine]  = useState("line");
+  const [mode,       setMode]     = useState("sub");
+  const [region,     setRegion]   = useState("WEU");
   const [currency,   setCurrency] = useState("EUR");
-  const [nightHrs,   setNight]    = useState(props.initNight   || 6);
-  const [distKm,     setDist]     = useState(props.initDist    || 80);
+  const [nightHrs,   setNight]    = useState(6);
+  const [distKm,     setDist]     = useState(80);
   const [mobilPerInt,setMobil]    = useState(true);
   const [showRates,  setShowRates]= useState(false);
   const [cOpPerMl,   setCOp]      = useState(null);
@@ -649,13 +648,8 @@ function GrindPanel(props) {
     setCStones(null); setCFuel(null); setCMaint(null); setCLabour(null); setCSpeed(null);
     setCstR(null);
   }
-  function notifyParent(updates) {
-    if (props.onParamsChange) {
-      props.onParamsChange(Object.assign({machineKey:machineKey,mode:mode,region:region,nightHrs:nightHrs,distKm:distKm}, updates));
-    }
-  }
-  function onMachineChange(k) { setMachine(k); resetRates(); notifyParent({machineKey:k}); }
-  function onRegionChange(r)  { setRegion(r);  resetRates(); notifyParent({region:r}); }
+  function onMachineChange(k) { setMachine(k); resetRates(); }
+  function onRegionChange(r)  { setRegion(r);  resetRates(); }
 
   // Build effective rates object merging preset with any custom overrides
   function getEffectiveMachine() {
@@ -762,7 +756,6 @@ function GrindPanel(props) {
   var mobilOnce = calcGrindCostPerMl(getEffectiveMachine(), mode, region, nightHrs, 1, currency);
   var mobilCostOnce = (mobilOnce.mobilFix + mobilOnce.mobilPerKm * distKm);
 
-
   var machineOpts = Object.keys(GRIND_MACHINES).filter(function(k){
     return GRIND_MACHINES[k].contexts.indexOf(context) >= 0 || true;
   }).map(function(k){return {v:k,l:GRIND_MACHINES[k].label};});
@@ -784,8 +777,8 @@ function GrindPanel(props) {
         <div style={{marginBottom:12}}>
           <Lbl>Operating mode</Lbl>
           <div style={{display:"flex",gap:8}}>
-            <Btn onClick={function(){setMode("owned"); notifyParent({mode:"owned"});}} active={mode==="owned"} sm={true}>Own fleet</Btn>
-            <Btn onClick={function(){setMode("sub");   notifyParent({mode:"sub"});}}   active={mode==="sub"}   sm={true}>Subcontract</Btn>
+            <Btn onClick={function(){setMode("owned");}} active={mode==="owned"} sm={true}>Own fleet</Btn>
+            <Btn onClick={function(){setMode("sub");}}   active={mode==="sub"}   sm={true}>Subcontract</Btn>
           </div>
           {mode==="owned"&&!hasOwned&&(
             <div style={{fontSize:11,color:cl.warn,marginTop:6,padding:"6px 10px",background:"rgba(248,113,113,0.08)",borderRadius:6}}>Specialist machines (Speno/Loram) are subcontract only</div>
@@ -803,8 +796,8 @@ function GrindPanel(props) {
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-          <div><Lbl>Night window (h)</Lbl><Inp value={nightHrs} onChange={function(v){setNight(v);notifyParent({nightHrs:v});}} min={2} max={10} step={0.5}/></div>
-          {mode==="sub"&&<div><Lbl>Distance from depot (km)</Lbl><Inp value={distKm} onChange={function(v){setDist(v);notifyParent({distKm:v});}} min={0} max={2000}/></div>}
+          <div><Lbl>Night window (h)</Lbl><Inp value={nightHrs} onChange={setNight} min={2} max={10} step={0.5}/></div>
+          {mode==="sub"&&<div><Lbl>Distance from depot (km)</Lbl><Inp value={distKm} onChange={setDist} min={0} max={2000}/></div>}
         </div>
 
         {mode==="sub"&&(
@@ -1291,8 +1284,6 @@ function ComparePanel(props) {
   var params    = props.params;
   var horizon   = props.horizon;
   var context   = props.context;
-  var grindRate = props.grindEurPerMl || 22;
-  var replRate  = props.replEurPerMl  || 380;
 
   const [prevResult, setPrev]   = useState(null);  // always preventive
   const [corrResult, setCorr]   = useState(null);  // always corrective
@@ -1351,10 +1342,10 @@ function ComparePanel(props) {
     var pPasses    = pr.data ? pr.data.reduce(function(a,d){return a+d.ground;},0) : 0;
     var cPasses    = cr.data ? cr.data.reduce(function(a,d){return a+d.ground;},0) : 0;
     var lenMl      = (pr.seg.lengthKm || 0) * 1000;
-    var pGrindCost = lenMl * pPasses * grindRate;
-    var cGrindCost = lenMl * cPasses * grindRate;
-    var pReplCost  = pr.repY ? lenMl * replRate : 0;
-    var cReplCost  = cr.repY ? lenMl * replRate : 0;
+    var pGrindCost = lenMl * pPasses * 22;
+    var cGrindCost = lenMl * cPasses * 22;
+    var pReplCost  = pr.repY ? lenMl * 380 : 0;
+    var cReplCost  = cr.repY ? lenMl * 380 : 0;
     var pTotal     = pGrindCost + pReplCost;
     var cTotal     = cGrindCost + cReplCost;
     return {
@@ -1463,7 +1454,7 @@ function ComparePanel(props) {
               <div style={{fontSize:12,color:totalSaving>0?cl.teal:cl.warn,fontWeight:700,marginBottom:4}}>
                 {totalSaving>0?"Preventive strategy is cheaper over "+horizon+" years":"Corrective strategy is cheaper over "+horizon+" years"}
               </div>
-              <div style={{fontSize:11,color:cl.dim}}>Estimated lifecycle cost difference  - grinding: {grindRate.toFixed(0)} EUR/ml/pass | replacement: {replRate.toFixed(0)} EUR/ml</div>
+              <div style={{fontSize:11,color:cl.dim}}>Estimated lifecycle cost difference (grinding + replacement, WEU reference rates: 22 EUR/ml/pass, 380 EUR/ml)</div>
             </div>
             <div style={{fontSize:28,fontWeight:800,color:totalSaving>0?cl.teal:cl.warn,fontFamily:"monospace"}}>{fmtDelta(totalSaving)}</div>
           </div>
@@ -1538,7 +1529,7 @@ function ComparePanel(props) {
 
             {chartTab==="cost" && (
               <div>
-                <div style={{fontSize:12,color:cl.dim,marginBottom:14}}>Lifecycle cost breakdown  - grinding: {grindRate.toFixed(0)} EUR/ml/pass | replacement: {replRate.toFixed(0)} EUR/ml  - rates from Grinding Cost and Replacement Cost tabs</div>
+                <div style={{fontSize:12,color:cl.dim,marginBottom:14}}>Lifecycle cost breakdown  - WEU indicative rates (grinding: 22 EUR/ml/pass, replacement: 380 EUR/ml)</div>
                 <div style={{overflowX:"auto"}}>
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                     <thead>
@@ -1582,7 +1573,7 @@ function ComparePanel(props) {
                   </table>
                 </div>
                 <div style={{marginTop:10,fontSize:11,color:"#4a6a74"}}>
-                  Rates are live from your configuration: grinding ({grindRate.toFixed(0)} EUR/ml/pass) from the Grinding Cost tab, replacement ({replRate.toFixed(0)} EUR/ml) from the Replacement Cost tab. Adjust machine, mode, region or unit rates there and re-run comparison to update.
+                  Indicative WEU rates only. Use Replacement Cost and Grinding Cost tabs for project-specific figures.
                 </div>
               </div>
             )}
@@ -1674,17 +1665,9 @@ export default function App() {
   const [ctab,     setCt]   = useState("wear");
   const [hasRun,   setHR]   = useState(false);
   const [err,      setErr]  = useState(null);
-  const [showHelp,      setHelp]       = useState(false);
-  const [showReport,    setShowRpt]    = useState(false);
-  const [projectName,   setProjName]   = useState("");
-  const [grindEurPerMl, setGrindEur]   = useState(22);   // computed below via useMemo
-  const [replEurPerMl,  setReplEur]    = useState(380);  // computed below via useMemo
-  // Lifted grind params - kept in sync with GrindPanel defaults
-  const [grindMachine,  setGMachine]   = useState("line");
-  const [grindMode,     setGMode]      = useState("sub");
-  const [grindRegion,   setGRegion]    = useState("WEU");
-  const [grindNight,    setGNight]     = useState(6);
-  const [grindDistKm,   setGDist]      = useState(80);
+  const [showHelp,    setHelp]    = useState(false);
+  const [showReport,  setShowRpt] = useState(false);
+  const [projectName, setProjName]= useState("");
 
   function addTrain(){setTr(function(t){return t.concat([{id:Date.now(),label:"Type "+String.fromCharCode(65+t.length),trainsPerDay:100,axleLoad:14,bogies:4,axlesPerBogie:2}]);});}
   function delTrain(id){setTr(function(t){return t.filter(function(x){return x.id!==id;});});}
@@ -1695,24 +1678,6 @@ export default function App() {
 
   var mgtPrev=useMemo(function(){return calcMGT(trains).toFixed(2);},[trains]);
   var eqPrev =useMemo(function(){return calcEqMGT(trains,context).toFixed(2);},[trains,context]);
-
-  // Compute live grind rate from lifted params so ComparePanel always has current value
-  var liveGrindRate = useMemo(function(){
-    var m = GRIND_MACHINES[grindMachine] || GRIND_MACHINES.line;
-    var c = calcGrindCostPerMl(m, grindMode, grindRegion, grindNight, 1, "EUR");
-    if(grindMode==="sub") {
-      return c.perMl;
-    }
-    return c.perMl;
-  },[grindMachine, grindMode, grindRegion, grindNight]);
-
-  // Compute live replacement rate from WEU R260 reference (CostPanel default)
-  var liveReplRate = useMemo(function(){
-    var reg = REGIONS[grindRegion] || REGIONS.WEU;
-    var p = {lbr:reg.lbr, mat:reg.mat, eqp:reg.eqp, weld:reg.weld, prod:reg.prod, team:reg.team};
-    var c = calcCostPerMl(p, "R260", "thermit", 6, "EUR", Math.round(reg.ovhd*100), false, 25);
-    return c.total;
-  },[grindRegion]);
 
   var run=useCallback(function(){
     var active=segs.filter(function(s){return s.active&&s.lengthKm>0;}).map(function(s){
@@ -2537,8 +2502,8 @@ export default function App() {
                       </div>
                     )}
                     {ctab==="cost"&&<CostPanel simResult={result} horizon={horizon}/>}
-                    {ctab==="grind"&&<GrindPanel simResult={result} horizon={horizon} context={context} initMachine={grindMachine} initMode={grindMode} initRegion={grindRegion} initNight={grindNight} initDist={grindDistKm} onParamsChange={function(p){setGMachine(p.machineKey);setGMode(p.mode);setGRegion(p.region);setGNight(p.nightHrs);setGDist(p.distKm);}}/>}
-                    {ctab==="cmp"&&<ComparePanel simResult={result} horizon={horizon} context={context} params={{context:context,trains:trains,segments:segs.filter(function(s){return s.active&&s.lengthKm>0;}).map(function(s){var b=Object.assign({},s,{radius:s.repr,railGrade:s.grade});if(isBF&&initCond[s.id]){var ic=initCond[s.id];b.initWearV=ic.wearV||0;b.initWearL=ic.wearL||0;b.initRCF=ic.rcf||0;b.initMGT=ic.mgt||0;}return b;}),strategy:strategy,railType:railType,trackMode:trackMode,speed:speed,lubrication:lubr,horizonYears:horizon}} grindEurPerMl={liveGrindRate} replEurPerMl={liveReplRate}/>}
+                    {ctab==="grind"&&<GrindPanel simResult={result} horizon={horizon} context={context}/>}
+                    {ctab==="cmp"&&<ComparePanel simResult={result} horizon={horizon} context={context} params={{context:context,trains:trains,segments:segs.filter(function(s){return s.active&&s.lengthKm>0;}).map(function(s){var b=Object.assign({},s,{radius:s.repr,railGrade:s.grade});if(isBF&&initCond[s.id]){var ic=initCond[s.id];b.initWearV=ic.wearV||0;b.initWearL=ic.wearL||0;b.initRCF=ic.rcf||0;b.initMGT=ic.mgt||0;}return b;}),strategy:strategy,railType:railType,trackMode:trackMode,speed:speed,lubrication:lubr,horizonYears:horizon}}/>}
                   </div>
                   <div style={{background:"rgba(0,0,0,0.15)",borderRadius:10,border:"1px solid rgba(125,211,200,0.08)",overflow:"hidden"}}>
                     <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)",fontSize:11,letterSpacing:2,color:cl.teal,textTransform:"uppercase",fontWeight:700}}>Summary - All Segments</div>
