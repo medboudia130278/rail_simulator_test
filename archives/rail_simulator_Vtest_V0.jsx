@@ -1280,47 +1280,71 @@ var HELP=[
 // ---- COMPARISON PANEL ----
 
 function ComparePanel(props) {
-  var simResult = props.simResult;
-  var params    = props.params;
+  var simResult = props.simResult;    // current run (strategy as set by user)
+  var params    = props.params;       // all params needed to re-run
   var horizon   = props.horizon;
   var context   = props.context;
 
-  const [prevResult, setPrev]   = useState(null);  // always preventive
-  const [corrResult, setCorr]   = useState(null);  // always corrective
-  const [running,    setRun]    = useState(false);
-  const [aidx,       setAi]     = useState(0);
-  const [chartTab,   setChTab]  = useState("wear");
+  const [cmpResult, setCmp]   = useState(null);
+  const [running,   setRun]   = useState(false);
+  const [aidx,      setAi]    = useState(0);
+  const [chartTab,  setChTab] = useState("wear");
   const [cmpParamsHash, setCmpHash] = useState(null);
 
-  // Hash excludes strategy  - comparison always runs both regardless
+  // Simple hash to detect if params changed since last comparison
   var paramsHash = params ? JSON.stringify({
-    context:      params.context,
-    trains:       params.trains,
-    railType:     params.railType,
-    trackMode:    params.trackMode,
-    speed:        params.speed,
-    lubrication:  params.lubrication,
+    context:   params.context,
+    trains:    params.trains,
+    strategy:  params.strategy,
+    railType:  params.railType,
+    trackMode: params.trackMode,
+    speed:     params.speed,
+    lubrication: params.lubrication,
     horizonYears: params.horizonYears,
     segKeys: (params.segments||[]).map(function(s){
       return s.id+"_"+s.radius+"_"+s.railGrade+"_"+(s.initWearV||0)+"_"+(s.initRCF||0);
     }).join("|"),
   }) : null;
 
-  var isStale      = (prevResult||corrResult) && cmpParamsHash && paramsHash && cmpParamsHash !== paramsHash;
-  var hasComparison = !!(prevResult && corrResult);
+  var isStale = cmpResult && cmpParamsHash && paramsHash && cmpParamsHash !== paramsHash;
+
+  // Determine which strategy is the "current" one
+  var curStrategy = params && params.strategy;
+  var altStrategy = curStrategy === "preventive" ? "corrective" : "preventive";
+  var prevResult  = curStrategy === "preventive" ? simResult   : cmpResult;
+  var corrResult  = curStrategy === "corrective" ? simResult   : cmpResult;
 
   function runComparison() {
     if (!params) return;
     setRun(true);
     try {
-      var rP = runSim(Object.assign({}, params, { strategy: "preventive" }));
-      var rC = runSim(Object.assign({}, params, { strategy: "corrective" }));
-      setPrev(rP);
-      setCorr(rC);
+      var r = runSim(Object.assign({}, params, { strategy: altStrategy }));
+      setCmp(r);
       setCmpHash(paramsHash);
       setAi(0);
     } catch(e) { }
     setRun(false);
+  }
+
+  var hasComparison = !!(prevResult && corrResult);
+  var sym = "EUR";
+
+  // Cost helpers - simplified estimate without cost panel state
+  function estimateReplCost(result) {
+    if (!result) return 0;
+    return result.results.reduce(function(a, r) {
+      if (!r.repY) return a;
+      var baseEur = 380; // EUR/ml rough estimate (WEU R260)
+      return a + (r.seg.lengthKm || 0) * 1000 * baseEur;
+    }, 0);
+  }
+  function estimateGrindCost(result) {
+    if (!result) return 0;
+    return result.results.reduce(function(a, r) {
+      var passes = r.data ? r.data.reduce(function(s,d){return s+d.ground;},0) : 0;
+      var baseEur = 22; // EUR/ml/pass rough estimate
+      return a + (r.seg.lengthKm || 0) * 1000 * passes * baseEur;
+    }, 0);
   }
 
   function fmt(v) {
@@ -1335,33 +1359,37 @@ function ComparePanel(props) {
     return s+v.toFixed(0)+" EUR";
   }
 
-  // Per-segment data  - always prev vs corr
+  // Per-segment comparison data
   var segData = hasComparison ? prevResult.results.map(function(pr, i) {
     var cr = corrResult.results[i];
     if (!cr) return null;
-    var pPasses    = pr.data ? pr.data.reduce(function(a,d){return a+d.ground;},0) : 0;
-    var cPasses    = cr.data ? cr.data.reduce(function(a,d){return a+d.ground;},0) : 0;
-    var lenMl      = (pr.seg.lengthKm || 0) * 1000;
-    var pGrindCost = lenMl * pPasses * 22;
-    var cGrindCost = lenMl * cPasses * 22;
-    var pReplCost  = pr.repY ? lenMl * 380 : 0;
-    var cReplCost  = cr.repY ? lenMl * 380 : 0;
+    var pPasses = pr.data ? pr.data.reduce(function(a,d){return a+d.ground;},0) : 0;
+    var cPasses = cr.data ? cr.data.reduce(function(a,d){return a+d.ground;},0) : 0;
+    var pRepl   = pr.repY || (horizon+1);
+    var cRepl   = cr.repY || (horizon+1);
+    var baseEur = 380;
+    var grindEur = 22;
+    var lenMl    = (pr.seg.lengthKm || 0) * 1000;
+    var pGrindCost = lenMl * pPasses * grindEur;
+    var cGrindCost = lenMl * cPasses * grindEur;
+    var pReplCost  = pr.repY ? lenMl * baseEur : 0;
+    var cReplCost  = cr.repY ? lenMl * baseEur : 0;
     var pTotal     = pGrindCost + pReplCost;
     var cTotal     = cGrindCost + cReplCost;
     return {
       seg: pr.seg, i: i,
       prevData: pr.data, corrData: cr.data,
       pPasses: pPasses, cPasses: cPasses,
-      pRepl: pr.repY,   cRepl: cr.repY,
+      pRepl: pr.repY, cRepl: cr.repY,
       pGrindCost: pGrindCost, cGrindCost: cGrindCost,
-      pReplCost:  pReplCost,  cReplCost:  cReplCost,
+      pReplCost: pReplCost,  cReplCost: cReplCost,
       pTotal: pTotal, cTotal: cTotal,
-      saving: cTotal - pTotal,
+      saving: cTotal - pTotal, // positive = preventive is cheaper
     };
   }).filter(Boolean) : [];
 
-  var totalPrev   = segData.reduce(function(a,s){return a+s.pTotal;},0);
-  var totalCorr   = segData.reduce(function(a,s){return a+s.cTotal;},0);
+  var totalPrev  = segData.reduce(function(a,s){return a+s.pTotal;},0);
+  var totalCorr  = segData.reduce(function(a,s){return a+s.cTotal;},0);
   var totalSaving = totalCorr - totalPrev;
   var prevRepls   = hasComparison ? prevResult.results.filter(function(r){return r.repY;}).length : 0;
   var corrRepls   = hasComparison ? corrResult.results.filter(function(r){return r.repY;}).length : 0;
@@ -1370,11 +1398,11 @@ function ComparePanel(props) {
   var prevSeg = asr && asr.prevData;
   var corrSeg = asr && asr.corrData;
 
-  // Merge year data  - both V, L and RCF for each strategy
+  // Merge year data for dual-line charts
   function mergeData(pData, cData) {
     if (!pData || !cData) return [];
     var maxY = Math.max(pData.length, cData.length);
-    var out  = [];
+    var out = [];
     for (var y = 0; y < maxY; y++) {
       var row = { year: (pData[y]||cData[y]).year };
       if (pData[y]) { row.pV=pData[y].wearV; row.pL=pData[y].wearL; row.pRCF=pData[y].rcf; }
@@ -1385,62 +1413,65 @@ function ComparePanel(props) {
   }
 
   var chartData = asr ? mergeData(prevSeg, corrSeg) : [];
-  var limV = LIMITS[context] && LIMITS[context].v;
-  var limL = LIMITS[context] && LIMITS[context].l;
 
   return (
     <div>
-      {/* Header */}
+      {/* Header bar */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,padding:"12px 16px",background:"rgba(0,0,0,0.2)",borderRadius:10,border:"1px solid rgba(125,211,200,0.1)"}}>
         <div>
           <div style={{fontSize:13,fontWeight:700,color:"#e8f4f3"}}>Strategy Comparison: Preventive vs Corrective</div>
           <div style={{fontSize:11,color:cl.dim,marginTop:3}}>
-            Always computes both strategies with your exact project parameters.
-            {hasComparison && <span style={{color:cl.teal}}> Comparison ready.</span>}
+            Current strategy: <b style={{color:cl.teal}}>{curStrategy}</b>
+            {cmpResult && <span> | Comparison run with: <b style={{color:cl.amber}}>{altStrategy}</b></span>}
           </div>
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
           {isStale && (
             <div style={{fontSize:11,color:cl.amber,padding:"5px 10px",background:"rgba(251,191,36,0.1)",borderRadius:6,border:"1px solid rgba(251,191,36,0.3)"}}>
-              Parameters changed - re-run comparison
+              Parameters changed  -  re-run comparison
             </div>
           )}
           <Btn onClick={runComparison} active={true} sm={false}>
-            {running ? "Computing..." : (hasComparison ? "Re-run Comparison" : "Run Comparison")}
+            {running ? "Computing..." : (cmpResult ? "Re-run Comparison" : "Run Comparison")}
           </Btn>
         </div>
       </div>
 
-      {!hasComparison && (
+      {!cmpResult && (
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:300,color:"#4a6a74",textAlign:"center",gap:14,border:"1px dashed rgba(125,211,200,0.12)",borderRadius:12}}>
           <div style={{fontSize:32}}>vs</div>
           <div style={{fontSize:14,fontWeight:600,color:cl.dim}}>Click "Run Comparison" to compute both strategies</div>
-          <div style={{fontSize:12,color:"#4a6a74",maxWidth:420}}>Both Preventive and Corrective will be simulated with your exact parameters: trains, segments, rail type, speed, lubrication, and brownfield conditions.</div>
+          <div style={{fontSize:12,color:"#4a6a74",maxWidth:420}}>
+            The simulator will run with your current parameters using both strategies simultaneously.
+            Current strategy <b style={{color:cl.teal}}>{curStrategy}</b> is already computed from your last Run.
+          </div>
         </div>
       )}
 
       {hasComparison && (
         <div>
-          {/* KPI cards */}
+          {/* Global KPI comparison */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:16}}>
             {[
-              ["Replacements",     prevRepls+" segments",                                           corrRepls+" segments",                                           prevRepls<=corrRepls?"preventive":"corrective"],
-              ["Total grindings",  prevResult.results.reduce(function(a,r){return a+r.gCount;},0)+" passes", corrResult.results.reduce(function(a,r){return a+r.gCount;},0)+" passes", "preventive"],
-              ["Grind cost (est.)",fmt(segData.reduce(function(a,s){return a+s.pGrindCost;},0)),   fmt(segData.reduce(function(a,s){return a+s.cGrindCost;},0)),   "corrective"],
-              ["Lifecycle (est.)", fmt(totalPrev),                                                  fmt(totalCorr),                                                  totalPrev<=totalCorr?"preventive":"corrective"],
+              ["Replacements","Preventive",prevRepls+" segments",corrRepls+" segments", prevRepls<corrRepls?"preventive":"corrective"],
+              ["Total grindings","Preventive",
+                (prevResult.results.reduce(function(a,r){return a+r.gCount;},0))+" passes",
+                (corrResult.results.reduce(function(a,r){return a+r.gCount;},0))+" passes","preventive"],
+              ["Grind cost (est.)","Preventive",fmt(segData.reduce(function(a,s){return a+s.pGrindCost;},0)),fmt(segData.reduce(function(a,s){return a+s.cGrindCost;},0)),"corrective"],
+              ["Lifecycle cost (est.)","Preventive",fmt(totalPrev),fmt(totalCorr),totalPrev<totalCorr?"preventive":"corrective"],
             ].map(function(item,i){
-              var winner=item[3];
+              var lbl=item[0],winner=item[4],pVal=item[2],cVal=item[3];
               return (
                 <div key={i} style={{background:"rgba(0,0,0,0.2)",borderRadius:10,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.06)"}}>
-                  <div style={{fontSize:10,color:cl.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{item[0]}</div>
-                  <div style={{display:"flex",gap:8}}>
+                  <div style={{fontSize:10,color:cl.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{lbl}</div>
+                  <div style={{display:"flex",gap:8,marginBottom:6}}>
                     <div style={{flex:1,padding:"6px 10px",borderRadius:6,background:winner==="preventive"?"rgba(125,211,200,0.12)":"rgba(255,255,255,0.03)",border:"1px solid "+(winner==="preventive"?"rgba(125,211,200,0.3)":"rgba(255,255,255,0.06)")}}>
                       <div style={{fontSize:9,color:cl.teal,fontWeight:700,textTransform:"uppercase",marginBottom:3}}>Preventive</div>
-                      <div style={{fontSize:14,fontWeight:700,color:cl.teal,fontFamily:"monospace"}}>{item[1]}</div>
+                      <div style={{fontSize:14,fontWeight:700,color:cl.teal,fontFamily:"monospace"}}>{pVal}</div>
                     </div>
                     <div style={{flex:1,padding:"6px 10px",borderRadius:6,background:winner==="corrective"?"rgba(251,191,36,0.12)":"rgba(255,255,255,0.03)",border:"1px solid "+(winner==="corrective"?"rgba(251,191,36,0.3)":"rgba(255,255,255,0.06)")}}>
                       <div style={{fontSize:9,color:cl.amber,fontWeight:700,textTransform:"uppercase",marginBottom:3}}>Corrective</div>
-                      <div style={{fontSize:14,fontWeight:700,color:cl.amber,fontFamily:"monospace"}}>{item[2]}</div>
+                      <div style={{fontSize:14,fontWeight:700,color:cl.amber,fontFamily:"monospace"}}>{cVal}</div>
                     </div>
                   </div>
                 </div>
@@ -1448,13 +1479,13 @@ function ComparePanel(props) {
             })}
           </div>
 
-          {/* Saving banner */}
+          {/* Lifecycle saving banner */}
           <div style={{marginBottom:16,padding:"14px 18px",borderRadius:10,background:totalSaving>0?"rgba(125,211,200,0.06)":"rgba(248,113,113,0.06)",border:"1px solid "+(totalSaving>0?"rgba(125,211,200,0.25)":"rgba(248,113,113,0.25)"),display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
               <div style={{fontSize:12,color:totalSaving>0?cl.teal:cl.warn,fontWeight:700,marginBottom:4}}>
                 {totalSaving>0?"Preventive strategy is cheaper over "+horizon+" years":"Corrective strategy is cheaper over "+horizon+" years"}
               </div>
-              <div style={{fontSize:11,color:cl.dim}}>Estimated lifecycle cost difference (grinding + replacement, WEU reference rates: 22 EUR/ml/pass, 380 EUR/ml)</div>
+              <div style={{fontSize:11,color:cl.dim}}>Estimated lifecycle cost difference (grinding + replacement, WEU reference rates)</div>
             </div>
             <div style={{fontSize:28,fontWeight:800,color:totalSaving>0?cl.teal:cl.warn,fontFamily:"monospace"}}>{fmtDelta(totalSaving)}</div>
           </div>
@@ -1477,29 +1508,24 @@ function ComparePanel(props) {
 
             {chartTab==="wear" && asr && (
               <div>
-                <div style={{fontSize:12,color:cl.dim,marginBottom:10,display:"flex",gap:16,flexWrap:"wrap"}}>
-                  <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:20,height:3,background:cl.teal,display:"inline-block"}}/> Preventive V</span>
-                  <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:20,height:3,background:cl.amber,display:"inline-block"}}/> Corrective V</span>
-                  <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:20,height:2,background:cl.teal,display:"inline-block",borderTop:"2px dashed "+cl.teal}}/> Preventive L</span>
-                  <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:20,height:2,background:cl.amber,display:"inline-block",borderTop:"2px dashed "+cl.amber}}/> Corrective L</span>
-                  <span style={{color:"#4a6a74"}}>V limit: <b style={{color:cl.warn}}>{limV}mm</b> | L limit: <b style={{color:cl.warn}}>{limL}mm</b></span>
+                <div style={{fontSize:12,color:cl.dim,marginBottom:12,display:"flex",gap:20}}>
+                  <span>Vertical wear - <b style={{color:cl.teal}}>Preventive</b> vs <b style={{color:cl.amber}}>Corrective</b></span>
+                  <span>Limit: <b style={{color:cl.warn}}>{asr.seg.label} {LIMITS[context]&&LIMITS[context].v}mm V / {LIMITS[context]&&LIMITS[context].l}mm L</b></span>
                 </div>
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={260}>
                   <AreaChart data={chartData}>
                     <defs>
-                      <linearGradient id="gpV" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cl.teal}  stopOpacity={0.22}/><stop offset="95%" stopColor={cl.teal}  stopOpacity={0}/></linearGradient>
-                      <linearGradient id="gcV" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cl.amber} stopOpacity={0.22}/><stop offset="95%" stopColor={cl.amber} stopOpacity={0}/></linearGradient>
+                      <linearGradient id="gpV" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cl.teal} stopOpacity={0.25}/><stop offset="95%" stopColor={cl.teal} stopOpacity={0}/></linearGradient>
+                      <linearGradient id="gcV" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cl.amber} stopOpacity={0.25}/><stop offset="95%" stopColor={cl.amber} stopOpacity={0}/></linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
                     <XAxis dataKey="year" stroke="#4a6a74" tick={{fontSize:11}}/>
                     <YAxis stroke="#4a6a74" tick={{fontSize:11}} unit=" mm"/>
-                    <Tooltip content={<Tip/>}/><Legend wrapperStyle={{fontSize:11}}/>
-                    <ReferenceLine y={limV} stroke={cl.warn} strokeDasharray="4 3" label={{value:"V lim "+limV+"mm",fill:cl.warn,fontSize:9}}/>
-                    <ReferenceLine y={limL} stroke={cl.warn} strokeDasharray="4 3" label={{value:"L lim "+limL+"mm",fill:cl.warn,fontSize:9}}/>
-                    <Area type="monotone" dataKey="pV" name="Preventive V (mm)" stroke={cl.teal}  fill="url(#gpV)" strokeWidth={2}   dot={false} connectNulls={true}/>
-                    <Area type="monotone" dataKey="cV" name="Corrective V (mm)" stroke={cl.amber} fill="url(#gcV)" strokeWidth={2}   dot={false} connectNulls={true}/>
-                    <Area type="monotone" dataKey="pL" name="Preventive L (mm)" stroke={cl.teal}  fill="none"      strokeWidth={1.5} dot={false} strokeDasharray="6 3" connectNulls={true}/>
-                    <Area type="monotone" dataKey="cL" name="Corrective L (mm)" stroke={cl.amber} fill="none"      strokeWidth={1.5} dot={false} strokeDasharray="6 3" connectNulls={true}/>
+                    <Tooltip content={<Tip/>}/>
+                    <Legend wrapperStyle={{fontSize:12}}/>
+                    <ReferenceLine y={LIMITS[context]&&LIMITS[context].v} stroke={cl.warn} strokeDasharray="4 3" label={{value:"V limit",fill:cl.warn,fontSize:10}}/>
+                    <Area type="monotone" dataKey="pV" name="Preventive V (mm)" stroke={cl.teal}  fill="url(#gpV)" strokeWidth={2} dot={false} connectNulls={true}/>
+                    <Area type="monotone" dataKey="cV" name="Corrective V (mm)"  stroke={cl.amber} fill="url(#gcV)" strokeWidth={2} dot={false} strokeDasharray="6 3" connectNulls={true}/>
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -1511,17 +1537,18 @@ function ComparePanel(props) {
                 <ResponsiveContainer width="100%" height={260}>
                   <AreaChart data={chartData}>
                     <defs>
-                      <linearGradient id="gpR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cl.teal}  stopOpacity={0.2}/><stop offset="95%" stopColor={cl.teal}  stopOpacity={0}/></linearGradient>
+                      <linearGradient id="gpR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cl.teal} stopOpacity={0.2}/><stop offset="95%" stopColor={cl.teal} stopOpacity={0}/></linearGradient>
                       <linearGradient id="gcR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cl.amber} stopOpacity={0.2}/><stop offset="95%" stopColor={cl.amber} stopOpacity={0}/></linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
                     <XAxis dataKey="year" stroke="#4a6a74" tick={{fontSize:11}}/>
                     <YAxis stroke="#4a6a74" tick={{fontSize:11}} domain={[0,1]}/>
-                    <Tooltip content={<Tip/>}/><Legend wrapperStyle={{fontSize:12}}/>
+                    <Tooltip content={<Tip/>}/>
+                    <Legend wrapperStyle={{fontSize:12}}/>
                     <ReferenceLine y={0.3} stroke={cl.green} strokeDasharray="4 4" label={{value:"Preventive OK",fill:cl.green,fontSize:10}}/>
-                    <ReferenceLine y={0.7} stroke={cl.warn}  strokeDasharray="4 4" label={{value:"Replacement", fill:cl.warn, fontSize:10}}/>
-                    <Area type="monotone" dataKey="pRCF" name="Preventive RCF" stroke={cl.teal}  fill="url(#gpR)" strokeWidth={2}   dot={false} connectNulls={true}/>
-                    <Area type="monotone" dataKey="cRCF" name="Corrective RCF"  stroke={cl.amber} fill="url(#gcR)" strokeWidth={2}   dot={false} strokeDasharray="6 3" connectNulls={true}/>
+                    <ReferenceLine y={0.7} stroke={cl.warn}  strokeDasharray="4 4" label={{value:"Replacement",fill:cl.warn,fontSize:10}}/>
+                    <Area type="monotone" dataKey="pRCF" name="Preventive RCF" stroke={cl.teal}  fill="url(#gpR)" strokeWidth={2} dot={false} connectNulls={true}/>
+                    <Area type="monotone" dataKey="cRCF" name="Corrective RCF"  stroke={cl.amber} fill="url(#gcR)" strokeWidth={2} dot={false} strokeDasharray="6 3" connectNulls={true}/>
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -1529,12 +1556,12 @@ function ComparePanel(props) {
 
             {chartTab==="cost" && (
               <div>
-                <div style={{fontSize:12,color:cl.dim,marginBottom:14}}>Lifecycle cost breakdown  - WEU indicative rates (grinding: 22 EUR/ml/pass, replacement: 380 EUR/ml)</div>
+                <div style={{fontSize:12,color:cl.dim,marginBottom:14}}>Lifecycle cost breakdown (estimated - WEU reference rates, EUR/ml: grinding=22, replacement=380)</div>
                 <div style={{overflowX:"auto"}}>
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                     <thead>
                       <tr style={{background:"rgba(255,255,255,0.03)"}}>
-                        {["Segment","Repl.yr PREV","Repl.yr CORR","Delta yr","Passes PREV","Passes CORR","Grind PREV","Grind CORR","Repl. PREV","Repl. CORR","Total PREV","Total CORR","Saving"].map(function(h){
+                        {["Segment","Repl. yr PREV","Repl. yr CORR","Delta yr","Passes PREV","Passes CORR","Grind cost PREV","Grind cost CORR","Repl. cost PREV","Repl. cost CORR","Total PREV","Total CORR","Saving (PREV vs CORR)"].map(function(h){
                           return <th key={h} style={{padding:"7px 10px",textAlign:"left",color:cl.dim,fontWeight:600,whiteSpace:"nowrap",fontSize:10}}>{h}</th>;
                         })}
                       </tr>
@@ -1542,7 +1569,7 @@ function ComparePanel(props) {
                     <tbody>
                       {segData.map(function(s,i){
                         var deltaYr = (s.cRepl||(horizon+1)) - (s.pRepl||(horizon+1));
-                        var savCol  = s.saving>0?cl.teal:s.saving<0?cl.warn:cl.dim;
+                        var savCol = s.saving>0?cl.teal:s.saving<0?cl.warn:cl.dim;
                         return(
                           <tr key={i} onClick={function(){setAi(i);setChTab("wear");}} style={{borderTop:"1px solid rgba(255,255,255,0.04)",cursor:"pointer",background:aidx===i?"rgba(125,211,200,0.04)":"transparent"}}>
                             <td style={{padding:"7px 10px",color:"#e8f4f3",fontWeight:500,whiteSpace:"nowrap"}}>{s.seg.label}</td>
@@ -1573,7 +1600,7 @@ function ComparePanel(props) {
                   </table>
                 </div>
                 <div style={{marginTop:10,fontSize:11,color:"#4a6a74"}}>
-                  Indicative WEU rates only. Use Replacement Cost and Grinding Cost tabs for project-specific figures.
+                  Cost rates are indicative WEU estimates (grinding ~22 EUR/ml/pass, replacement ~380 EUR/ml). Use the Replacement Cost and Grinding Cost tabs for precise project-specific figures.
                 </div>
               </div>
             )}
@@ -1583,6 +1610,7 @@ function ComparePanel(props) {
     </div>
   );
 }
+
 function HelpModal(props){
   const [tab, setTab] = useState("overview");
   var sec=HELP.find(function(h){return h.id===tab;});
