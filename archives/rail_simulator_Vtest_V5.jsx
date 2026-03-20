@@ -102,35 +102,12 @@ function calcCostPerMl(p, grade, weldType, nightHrs, currency, ovhdPct, withGrin
 
 // ---- SIMULATION ENGINE ----
 
-function calcPassesPerDay(t) {
-  // Mileage mode: fleet x mileage / section_length / 365
-  if (t.mileageActive && t.mileageProfile) {
-    var mp = t.mileageProfile;
-    if (mp.sectionKm > 0) {
-      return (mp.fleetSize * mp.mileagePerTrain) / (mp.sectionKm * 365);
-    }
-    return t.trainsPerDay;
-  }
-  // Weekly profile mode
-  if (t.weekActive && t.weekProfile) {
-    var wp = t.weekProfile;
-    return (5*wp.weekday + wp.saturday + wp.sunday) / 7;
-  }
-  return t.trainsPerDay;
-}
 function calcMGT(trains) {
-  return trains.reduce(function(s,t){
-    var ppd = calcPassesPerDay(t);
-    return s+(ppd*t.axleLoad*t.bogies*t.axlesPerBogie*365)/1e6;
-  },0);
+  return trains.reduce(function(s,t){ return s+(t.trainsPerDay*t.axleLoad*t.bogies*t.axlesPerBogie*365)/1e6; },0);
 }
 function calcEqMGT(trains,ctx) {
   var qRef=CONTEXTS[ctx].qRef;
-  return trains.reduce(function(s,t){
-    var ppd = calcPassesPerDay(t);
-    var m=(ppd*t.axleLoad*t.bogies*t.axlesPerBogie*365)/1e6;
-    return s+m*Math.pow(t.axleLoad/qRef,3);
-  },0);
+  return trains.reduce(function(s,t){ var m=(t.trainsPerDay*t.axleLoad*t.bogies*t.axlesPerBogie*365)/1e6; return s+m*Math.pow(t.axleLoad/qRef,3); },0);
 }
 function runSim(params) {
   var ctx=CONTEXTS[params.context], rt=RAIL_TYPES[params.railType], tm=TRACK_MODES[params.trackMode];
@@ -1873,7 +1850,7 @@ function HelpModal(props){
 
 export default function App() {
   const [context,  setCon]  = useState("metro");
-  const [trains,   setTr]   = useState([{id:1,label:"Type A",trainsPerDay:200,axleLoad:14,bogies:4,axlesPerBogie:2,weekActive:false,weekProfile:{weekday:200,saturday:140,sunday:80},mileageActive:false,mileageProfile:{fleetSize:10,mileagePerTrain:120000,sectionKm:10}}]);
+  const [trains,   setTr]   = useState([{id:1,label:"Type A",trainsPerDay:200,axleLoad:14,bogies:4,axlesPerBogie:2}]);
   const [segs,     setSegs] = useState([
     {id:"r1",label:"R < 100 m",       active:false,lengthKm:0,  grade:"R400HT",repr:75},
     {id:"r2",label:"100 to 200 m",    active:false,lengthKm:0,  grade:"R350HT",repr:150},
@@ -1907,7 +1884,7 @@ export default function App() {
   const [grindNight,    setGNight]     = useState(6);
   const [grindDistKm,   setGDist]      = useState(80);
 
-  function addTrain(){setTr(function(t){return t.concat([{id:Date.now(),label:"Type "+String.fromCharCode(65+t.length),trainsPerDay:100,axleLoad:14,bogies:4,axlesPerBogie:2,weekActive:false,weekProfile:{weekday:100,saturday:70,sunday:40},mileageActive:false,mileageProfile:{fleetSize:10,mileagePerTrain:120000,sectionKm:10}}]);});}
+  function addTrain(){setTr(function(t){return t.concat([{id:Date.now(),label:"Type "+String.fromCharCode(65+t.length),trainsPerDay:100,axleLoad:14,bogies:4,axlesPerBogie:2}]);});}
   function delTrain(id){setTr(function(t){return t.filter(function(x){return x.id!==id;});});}
   function updTrain(id,f,v){setTr(function(t){return t.map(function(x){return x.id===id?Object.assign({},x,{[f]:v}):x;});});}
   function updSeg(id,f,v){setSegs(function(s){return s.map(function(x){return x.id===id?Object.assign({},x,{[f]:v}):x;});});}
@@ -2485,111 +2462,10 @@ export default function App() {
                   {trains.length>1&&<button onClick={function(){delTrain(tr.id);}} style={{background:"none",border:"none",color:cl.warn,cursor:"pointer",fontSize:18,marginLeft:8}}>x</button>}
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                  <div>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
-                      <Lbl>Passes/day (one track, one dir.)</Lbl>
-                      {tr.weekActive&&<span style={{fontSize:9,color:cl.teal,background:"rgba(125,211,200,0.12)",borderRadius:3,padding:"1px 6px",fontWeight:700}}>FROM PROFILE</span>}
-                      {tr.mileageActive&&<span style={{fontSize:9,color:cl.purple,background:"rgba(167,139,250,0.12)",borderRadius:3,padding:"1px 6px",fontWeight:700}}>FROM MILEAGE</span>}
-                    </div>
-                    <Inp value={(tr.weekActive||tr.mileageActive)?+calcPassesPerDay(tr).toFixed(1):tr.trainsPerDay} onChange={function(v){if(!tr.weekActive&&!tr.mileageActive)updTrain(tr.id,"trainsPerDay",v);}} min={1}/>
-                  </div>
+                  <div><Lbl>Passes/day (one track, one dir.)</Lbl><Inp value={tr.trainsPerDay} onChange={function(v){updTrain(tr.id,"trainsPerDay",v);}} min={1}/></div>
                   <div><Lbl>Axle load (t)</Lbl><Inp value={tr.axleLoad} onChange={function(v){updTrain(tr.id,"axleLoad",v);}} min={5} max={35} step={0.5}/></div>
                   <div><Lbl>No. of bogies</Lbl><Inp value={tr.bogies} onChange={function(v){updTrain(tr.id,"bogies",v);}} min={2} max={16}/></div>
                   <div><Lbl>Axles/bogie</Lbl><Inp value={tr.axlesPerBogie} onChange={function(v){updTrain(tr.id,"axlesPerBogie",v);}} min={2} max={4}/></div>
-                </div>
-
-                {/* Weekly profile toggle */}
-                <div style={{marginTop:8,padding:"8px 10px",background:"rgba(255,255,255,0.02)",borderRadius:6,border:"1px solid "+(tr.weekActive?"rgba(125,211,200,0.2)":"rgba(255,255,255,0.06)")}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:tr.weekActive?10:0}}>
-                    <div onClick={function(){
-                      var next=!tr.weekActive;
-                      updTrain(tr.id,"weekActive",next);
-                      if(next) updTrain(tr.id,"mileageActive",false);
-                    }} style={{width:28,height:16,borderRadius:8,background:tr.weekActive?cl.teal:"rgba(255,255,255,0.1)",position:"relative",cursor:"pointer",flexShrink:0,border:"1px solid "+(tr.weekActive?cl.teal:"rgba(255,255,255,0.2)")}}>
-                      <div style={{width:10,height:10,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:tr.weekActive?14:2}}/>
-                    </div>
-                    <span style={{fontSize:11,color:tr.weekActive?cl.teal:cl.dim,fontWeight:tr.weekActive?600:400}}>Weekly traffic profile</span>
-                    {tr.weekActive&&(
-                      <span style={{fontSize:11,color:cl.dim,marginLeft:"auto"}}>
-                        Equiv: <b style={{color:cl.teal,fontFamily:"monospace"}}>{calcPassesPerDay(tr).toFixed(1)}</b> passes/day
-                      </span>
-                    )}
-                  </div>
-                  {tr.weekActive&&(
-                    <div>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
-                        <div>
-                          <Lbl>Mon - Fri (x5 days)</Lbl>
-                          <Inp value={(tr.weekProfile||{weekday:tr.trainsPerDay}).weekday} onChange={function(v){updTrain(tr.id,"weekProfile",Object.assign({},tr.weekProfile,{weekday:v}));}} min={0}/>
-                        </div>
-                        <div>
-                          <Lbl>Saturday (x1 day)</Lbl>
-                          <Inp value={(tr.weekProfile||{saturday:tr.trainsPerDay}).saturday} onChange={function(v){updTrain(tr.id,"weekProfile",Object.assign({},tr.weekProfile,{saturday:v}));}} min={0}/>
-                        </div>
-                        <div>
-                          <Lbl>Sunday (x1 day)</Lbl>
-                          <Inp value={(tr.weekProfile||{sunday:tr.trainsPerDay}).sunday} onChange={function(v){updTrain(tr.id,"weekProfile",Object.assign({},tr.weekProfile,{sunday:v}));}} min={0}/>
-                        </div>
-                      </div>
-                      <div style={{display:"flex",gap:12,fontSize:11,padding:"6px 10px",background:"rgba(125,211,200,0.05)",borderRadius:6,border:"1px solid rgba(125,211,200,0.1)"}}>
-                        <span style={{color:cl.dim}}>Formula: (5 x Mon-Fri + Sat + Sun) / 7</span>
-                        <span style={{color:cl.dim}}>= ({5*(tr.weekProfile||{weekday:0}).weekday} + {(tr.weekProfile||{saturday:0}).saturday} + {(tr.weekProfile||{sunday:0}).sunday}) / 7</span>
-                        <span style={{color:cl.teal,fontWeight:700}}>= {calcPassesPerDay(tr).toFixed(1)} passes/day</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Mileage profile toggle */}
-                <div style={{marginTop:6,padding:"8px 10px",background:"rgba(255,255,255,0.02)",borderRadius:6,border:"1px solid "+(tr.mileageActive?"rgba(167,139,250,0.25)":"rgba(255,255,255,0.06)")}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:tr.mileageActive?10:0}}>
-                    <div onClick={function(){
-                      var next=!tr.mileageActive;
-                      updTrain(tr.id,"mileageActive",next);
-                      if(next) updTrain(tr.id,"weekActive",false);
-                    }} style={{width:28,height:16,borderRadius:8,background:tr.mileageActive?cl.purple:"rgba(255,255,255,0.1)",position:"relative",cursor:"pointer",flexShrink:0,border:"1px solid "+(tr.mileageActive?cl.purple:"rgba(255,255,255,0.2)")}}>
-                      <div style={{width:10,height:10,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:tr.mileageActive?14:2}}/>
-                    </div>
-                    <span style={{fontSize:11,color:tr.mileageActive?cl.purple:cl.dim,fontWeight:tr.mileageActive?600:400}}>From mileage (fleet + km/train/yr)</span>
-                    {tr.mileageActive&&(
-                      <span style={{fontSize:11,color:cl.dim,marginLeft:"auto"}}>
-                        Equiv: <b style={{color:cl.purple,fontFamily:"monospace"}}>{calcPassesPerDay(tr).toFixed(1)}</b> passes/day
-                      </span>
-                    )}
-                  </div>
-                  {tr.mileageActive&&(
-                    <div>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
-                        <div>
-                          <Lbl>Fleet size (trains)</Lbl>
-                          <Inp value={(tr.mileageProfile||{fleetSize:10}).fleetSize} onChange={function(v){updTrain(tr.id,"mileageProfile",Object.assign({},tr.mileageProfile,{fleetSize:v}));}} min={1}/>
-                        </div>
-                        <div>
-                          <Lbl>Mileage per train (km/yr)</Lbl>
-                          <Inp value={(tr.mileageProfile||{mileagePerTrain:120000}).mileagePerTrain} onChange={function(v){updTrain(tr.id,"mileageProfile",Object.assign({},tr.mileageProfile,{mileagePerTrain:v}));}} min={1000} step={1000}/>
-                        </div>
-                        <div>
-                          <Lbl>Section length (km)</Lbl>
-                          <Inp value={(tr.mileageProfile||{sectionKm:10}).sectionKm} onChange={function(v){updTrain(tr.id,"mileageProfile",Object.assign({},tr.mileageProfile,{sectionKm:Math.max(0.1,v)}));}} min={0.1} step={0.1}/>
-                        </div>
-                      </div>
-                      <div style={{fontSize:11,padding:"6px 10px",background:"rgba(167,139,250,0.05)",borderRadius:6,border:"1px solid rgba(167,139,250,0.12)"}}>
-                        {(function(){
-                          var mp=tr.mileageProfile||{fleetSize:10,mileagePerTrain:120000,sectionKm:10};
-                          var totalKmYr=mp.fleetSize*mp.mileagePerTrain;
-                          var passesYr=mp.sectionKm>0?totalKmYr/mp.sectionKm:0;
-                          var passesDay=passesYr/365;
-                          return(
-                            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-                              <span style={{color:cl.dim}}>Total fleet km/yr: <b style={{color:cl.purple}}>{(totalKmYr/1000).toFixed(0)}k km</b></span>
-                              <span style={{color:cl.dim}}>Formula: {mp.fleetSize} x {(mp.mileagePerTrain/1000).toFixed(0)}k / ({mp.sectionKm} x 365)</span>
-                              <span style={{color:cl.purple,fontWeight:700}}>= {passesDay.toFixed(1)} passes/day</span>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <div style={{marginTop:8,fontSize:11,color:cl.dim}}>Gross tonnage: <b style={{color:cl.teal}}>{(tr.axleLoad*tr.bogies*tr.axlesPerBogie).toFixed(0)} t</b> - <b style={{color:cl.teal}}>{((tr.trainsPerDay*tr.axleLoad*tr.bogies*tr.axlesPerBogie*365)/1e6).toFixed(2)} MGT/yr</b></div>
               </div>
