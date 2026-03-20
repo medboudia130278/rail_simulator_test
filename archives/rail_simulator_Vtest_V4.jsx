@@ -1372,28 +1372,6 @@ function ComparePanel(props) {
   var totalPrev   = segData.reduce(function(a,s){return a+s.pTotal;},0);
   var totalCorr   = segData.reduce(function(a,s){return a+s.cTotal;},0);
   var totalSaving = totalCorr - totalPrev;
-
-  // Full-horizon lifecycle computation (same logic as the table below, lifted for the banner)
-  var fullHorizonData = segData.map(function(s) {
-    function cycleCalc(firstRepY, firstPasses, firstGrindCost, firstReplCost) {
-      if (!firstRepY) return {repls:0, passes:firstPasses, grindCost:firstGrindCost, replCost:0, total:firstGrindCost};
-      var cycleLen=firstRepY, yr=0, repls=0, passes=0, grindCost=0, replCost=0;
-      while(yr + cycleLen <= horizon) {
-        yr+=cycleLen; repls+=1; passes+=firstPasses; grindCost+=firstGrindCost; replCost+=firstReplCost;
-      }
-      var frac=(horizon-yr)/cycleLen;
-      if(frac>0){passes+=Math.round(firstPasses*frac); grindCost+=firstGrindCost*frac;}
-      return {repls:repls, passes:passes, grindCost:grindCost, replCost:replCost, total:grindCost+replCost};
-    }
-    var ph=cycleCalc(s.pRepl,s.pPasses,s.pGrindCost,s.pReplCost);
-    var ch=cycleCalc(s.cRepl,s.cPasses,s.cGrindCost,s.cReplCost);
-    return {pTotal:ph.total, cTotal:ch.total, pRepls:ph.repls, cRepls:ch.repls, pPass:ph.passes, cPass:ch.passes, pGrind:ph.grindCost, cGrind:ch.grindCost, pRepl:ph.replCost, cRepl:ch.replCost};
-  });
-  var fhTotalPrev   = fullHorizonData.reduce(function(a,r){return a+r.pTotal;},0);
-  var fhTotalCorr   = fullHorizonData.reduce(function(a,r){return a+r.cTotal;},0);
-  var fhTotalSaving = fhTotalCorr - fhTotalPrev;
-  var fhTotalReplsP = fullHorizonData.reduce(function(a,r){return a+r.pRepls;},0);
-  var fhTotalReplsC = fullHorizonData.reduce(function(a,r){return a+r.cRepls;},0);
   var prevRepls   = hasComparison ? prevResult.results.filter(function(r){return r.repY;}).length : 0;
   var corrRepls   = hasComparison ? corrResult.results.filter(function(r){return r.repY;}).length : 0;
 
@@ -1480,44 +1458,14 @@ function ComparePanel(props) {
           </div>
 
           {/* Saving banner */}
-          <div style={{marginBottom:16,borderRadius:10,overflow:"hidden",border:"1px solid "+(totalSaving>0||fhTotalSaving>0?"rgba(125,211,200,0.25)":"rgba(248,113,113,0.25)")}}>
-            {/* Banner title */}
-            <div style={{padding:"10px 18px",background:totalSaving>0||fhTotalSaving>0?"rgba(125,211,200,0.08)":"rgba(248,113,113,0.08)"}}>
-              <div style={{fontSize:12,fontWeight:700,color:totalSaving>0?cl.teal:cl.warn}}>
-                {totalSaving>0&&fhTotalSaving>0?"Preventive strategy is cheaper  - both on first cycle and over the full "+horizon+"-year horizon":
-                 totalSaving<=0&&fhTotalSaving<=0?"Corrective strategy is cheaper  - both on first cycle and over the full "+horizon+"-year horizon":
-                 totalSaving>0?"Preventive cheaper on first cycle  - check full horizon":
-                 "Corrective cheaper on first cycle  - check full horizon"}
+          <div style={{marginBottom:16,padding:"14px 18px",borderRadius:10,background:totalSaving>0?"rgba(125,211,200,0.06)":"rgba(248,113,113,0.06)",border:"1px solid "+(totalSaving>0?"rgba(125,211,200,0.25)":"rgba(248,113,113,0.25)"),display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:12,color:totalSaving>0?cl.teal:cl.warn,fontWeight:700,marginBottom:4}}>
+                {totalSaving>0?"Preventive strategy is cheaper over "+horizon+" years":"Corrective strategy is cheaper over "+horizon+" years"}
               </div>
-              <div style={{fontSize:11,color:cl.dim,marginTop:3}}>Estimated lifecycle cost difference  - grinding: {grindRate.toFixed(0)} EUR/ml/pass | replacement: {replRate.toFixed(0)} EUR/ml</div>
+              <div style={{fontSize:11,color:cl.dim}}>Estimated lifecycle cost difference  - grinding: {grindRate.toFixed(0)} EUR/ml/pass | replacement: {replRate.toFixed(0)} EUR/ml</div>
             </div>
-            {/* Two columns */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
-              {/* First cycle */}
-              <div style={{padding:"14px 18px",borderRight:"1px solid rgba(255,255,255,0.08)",background:"rgba(0,0,0,0.1)"}}>
-                <div style={{fontSize:10,color:cl.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>First cycle only</div>
-                <div style={{fontSize:26,fontWeight:800,color:totalSaving>0?cl.teal:cl.warn,fontFamily:"monospace",marginBottom:4}}>{fmtDelta(totalSaving)}</div>
-                <div style={{fontSize:11,color:cl.dim}}>
-                  {totalSaving>0?"Preventive saves on first rail cycle":"Corrective saves on first rail cycle"}
-                </div>
-                <div style={{marginTop:8,display:"flex",gap:14,fontSize:11}}>
-                  <span style={{color:cl.teal}}>PREV: <b>{fmt(totalPrev)}</b></span>
-                  <span style={{color:cl.amber}}>CORR: <b>{fmt(totalCorr)}</b></span>
-                </div>
-              </div>
-              {/* Full horizon */}
-              <div style={{padding:"14px 18px",background:"rgba(0,0,0,0.15)"}}>
-                <div style={{fontSize:10,color:cl.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Full {horizon}-year horizon</div>
-                <div style={{fontSize:26,fontWeight:800,color:fhTotalSaving>0?cl.teal:cl.warn,fontFamily:"monospace",marginBottom:4}}>{fmtDelta(fhTotalSaving)}</div>
-                <div style={{fontSize:11,color:cl.dim}}>
-                  {fhTotalSaving>0?"Preventive saves over full contract":"Corrective saves over full contract"}
-                </div>
-                <div style={{marginTop:8,display:"flex",gap:14,fontSize:11}}>
-                  <span style={{color:cl.teal}}>PREV: <b>{fmt(fhTotalPrev)}</b> ({fhTotalReplsP} repls)</span>
-                  <span style={{color:cl.amber}}>CORR: <b>{fmt(fhTotalCorr)}</b> ({fhTotalReplsC} repls)</span>
-                </div>
-              </div>
-            </div>
+            <div style={{fontSize:28,fontWeight:800,color:totalSaving>0?cl.teal:cl.warn,fontFamily:"monospace"}}>{fmtDelta(totalSaving)}</div>
           </div>
 
           {/* Segment selector */}
@@ -1625,7 +1573,7 @@ function ComparePanel(props) {
                     </tbody>
                     <tfoot>
                       <tr style={{borderTop:"2px solid rgba(125,211,200,0.2)",background:"rgba(125,211,200,0.04)"}}>
-                        <td colSpan={10} style={{padding:"9px 10px",color:cl.teal,fontWeight:700,fontSize:12}}>TOTAL (first cycle)</td>
+                        <td colSpan={10} style={{padding:"9px 10px",color:cl.teal,fontWeight:700,fontSize:12}}>TOTAL</td>
                         <td style={{padding:"9px 10px",fontFamily:"monospace",color:cl.teal,fontWeight:800}}>{fmt(totalPrev)}</td>
                         <td style={{padding:"9px 10px",fontFamily:"monospace",color:cl.amber,fontWeight:800}}>{fmt(totalCorr)}</td>
                         <td style={{padding:"9px 10px",fontFamily:"monospace",color:totalSaving>0?cl.teal:cl.warn,fontWeight:800,fontSize:14}}>{fmtDelta(totalSaving)}</td>
@@ -1633,152 +1581,6 @@ function ComparePanel(props) {
                     </tfoot>
                   </table>
                 </div>
-
-                {/* FULL HORIZON TABLE */}
-                {(function(){
-                  // Compute full horizon for each segment by repeating cycles from greenfield
-                  var fullRows = segData.map(function(s) {
-                    var lenMl = (s.seg.lengthKm||0)*1000;
-
-                    function computeFullHorizon(firstRepY, firstPasses, firstGrindCost, firstReplCost) {
-                      if(!firstRepY) {
-                        // No replacement in first cycle - no replacements over horizon
-                        return {repls:0, passes:firstPasses, grindCost:firstGrindCost, replCost:0, total:firstGrindCost};
-                      }
-                      var cycleLen    = firstRepY;           // years per cycle (greenfield assumption)
-                      var cycleGrind  = firstGrindCost;      // grinding cost per cycle
-                      var cyclePasses = firstPasses;         // grinding passes per cycle
-                      var cycleRepl   = firstReplCost;       // replacement cost per cycle
-                      var totalRepls  = 0;
-                      var totalPass   = 0;
-                      var totalGrind  = 0;
-                      var totalRepl   = 0;
-                      var yr          = 0;
-                      // Walk through horizon cycle by cycle
-                      while(yr + cycleLen <= horizon) {
-                        yr          += cycleLen;
-                        totalRepls  += 1;
-                        totalPass   += cyclePasses;
-                        totalGrind  += cycleGrind;
-                        totalRepl   += cycleRepl;
-                      }
-                      // Partial cycle remaining
-                      var remaining = horizon - yr;
-                      if(remaining > 0 && cycleLen > 0) {
-                        var frac = remaining / cycleLen;
-                        totalPass  += Math.round(cyclePasses * frac);
-                        totalGrind += cycleGrind * frac;
-                        // No replacement in partial cycle (rail not yet worn out)
-                      }
-                      return {
-                        repls:      totalRepls,
-                        passes:     totalPass,
-                        grindCost:  totalGrind,
-                        replCost:   totalRepl,
-                        total:      totalGrind + totalRepl,
-                      };
-                    }
-
-                    var ph = computeFullHorizon(s.pRepl, s.pPasses, s.pGrindCost, s.pReplCost);
-                    var ch = computeFullHorizon(s.cRepl, s.cPasses, s.cGrindCost, s.cReplCost);
-                    return {
-                      seg:    s.seg,
-                      pRepls: ph.repls, cRepls: ch.repls,
-                      pPass:  ph.passes, cPass:  ch.passes,
-                      pGrind: ph.grindCost, cGrind: ch.grindCost,
-                      pRepl:  ph.replCost,  cRepl:  ch.replCost,
-                      pTotal: ph.total,     cTotal: ch.total,
-                      saving: ch.total - ph.total,
-                    };
-                  });
-
-                  var fTotPGrind  = fullRows.reduce(function(a,r){return a+r.pGrind;},0);
-                  var fTotCGrind  = fullRows.reduce(function(a,r){return a+r.cGrind;},0);
-                  var fTotPRepl   = fullRows.reduce(function(a,r){return a+r.pRepl;},0);
-                  var fTotCRepl   = fullRows.reduce(function(a,r){return a+r.cRepl;},0);
-                  var fTotP       = fullRows.reduce(function(a,r){return a+r.pTotal;},0);
-                  var fTotC       = fullRows.reduce(function(a,r){return a+r.cTotal;},0);
-                  var fSaving     = fTotC - fTotP;
-
-                  return (
-                    <div style={{marginTop:20}}>
-                      <div style={{fontSize:11,letterSpacing:2,color:cl.teal,fontWeight:700,textTransform:"uppercase",marginBottom:10}}>
-                        Full Horizon Lifecycle ({horizon} years) - Greenfield at each replacement
-                      </div>
-
-                      {/* KPI summary row */}
-                      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:14}}>
-                        {[
-                          ["Total replacements", fullRows.reduce(function(a,r){return a+r.pRepls;},0)+" PREV", fullRows.reduce(function(a,r){return a+r.cRepls;},0)+" CORR", cl.teal],
-                          ["Total grind passes",  fullRows.reduce(function(a,r){return a+r.pPass;},0)+" PREV",  fullRows.reduce(function(a,r){return a+r.cPass;},0)+" CORR",  cl.teal],
-                          ["Total grind cost",    fmt(fTotPGrind)+" PREV", fmt(fTotCGrind)+" CORR", cl.teal],
-                          ["Total repl. cost",    fmt(fTotPRepl)+" PREV",  fmt(fTotCRepl)+" CORR",  cl.amber],
-                          ["Lifecycle saving",    fSaving>0?"PREV cheaper":"CORR cheaper", fmtDelta(fSaving), fSaving>0?cl.teal:cl.warn],
-                        ].map(function(item,i){return(
-                          <div key={i} style={{background:"rgba(0,0,0,0.2)",borderRadius:8,padding:"10px 12px",border:"1px solid rgba(255,255,255,0.06)"}}>
-                            <div style={{fontSize:9,color:cl.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>{item[0]}</div>
-                            {i<4?(
-                              <div>
-                                <div style={{fontSize:11,color:cl.teal,fontFamily:"monospace",marginBottom:2}}>{item[1]}</div>
-                                <div style={{fontSize:11,color:cl.amber,fontFamily:"monospace"}}>{item[2]}</div>
-                              </div>
-                            ):(
-                              <div>
-                                <div style={{fontSize:11,color:item[3],fontFamily:"monospace",marginBottom:2}}>{item[1]}</div>
-                                <div style={{fontSize:14,fontWeight:800,color:item[3],fontFamily:"monospace"}}>{item[2]}</div>
-                              </div>
-                            )}
-                          </div>
-                        );})}
-                      </div>
-
-                      <div style={{overflowX:"auto"}}>
-                        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                          <thead>
-                            <tr style={{background:"rgba(0,0,0,0.3)"}}>
-                              {["Segment","Repls PREV","Repls CORR","Passes PREV","Passes CORR","Grind PREV","Grind CORR","Repl PREV","Repl CORR","Total PREV","Total CORR","Saving "+horizon+"yr"].map(function(h){
-                                return <th key={h} style={{padding:"7px 10px",textAlign:"left",color:cl.teal,fontWeight:600,whiteSpace:"nowrap",fontSize:10}}>{h}</th>;
-                              })}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {fullRows.map(function(r,i){
-                              var savCol = r.saving>0?cl.teal:r.saving<0?cl.warn:cl.dim;
-                              return(
-                                <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"rgba(125,211,200,0.02)":"transparent"}}>
-                                  <td style={{padding:"7px 10px",color:"#e8f4f3",fontWeight:500,whiteSpace:"nowrap"}}>{r.seg.label}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace",color:cl.teal,fontWeight:700}}>{r.pRepls}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace",color:cl.amber,fontWeight:700}}>{r.cRepls}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace",color:cl.teal}}>{r.pPass}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace",color:cl.amber}}>{r.cPass}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace"}}>{fmt(r.pGrind)}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace"}}>{fmt(r.cGrind)}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace"}}>{r.pRepl>0?fmt(r.pRepl):"-"}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace"}}>{r.cRepl>0?fmt(r.cRepl):"-"}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace",color:cl.teal,fontWeight:700}}>{fmt(r.pTotal)}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace",color:cl.amber,fontWeight:700}}>{fmt(r.cTotal)}</td>
-                                  <td style={{padding:"7px 10px",fontFamily:"monospace",color:savCol,fontWeight:800}}>{fmtDelta(r.saving)}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                          <tfoot>
-                            <tr style={{borderTop:"2px solid rgba(125,211,200,0.25)",background:"rgba(125,211,200,0.06)"}}>
-                              <td colSpan={9} style={{padding:"9px 10px",color:cl.teal,fontWeight:700,fontSize:12}}>TOTAL {horizon} YEARS</td>
-                              <td style={{padding:"9px 10px",fontFamily:"monospace",color:cl.teal,fontWeight:800,fontSize:13}}>{fmt(fTotP)}</td>
-                              <td style={{padding:"9px 10px",fontFamily:"monospace",color:cl.amber,fontWeight:800,fontSize:13}}>{fmt(fTotC)}</td>
-                              <td style={{padding:"9px 10px",fontFamily:"monospace",color:fSaving>0?cl.teal:cl.warn,fontWeight:800,fontSize:15}}>{fmtDelta(fSaving)}</td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                      <div style={{marginTop:8,fontSize:11,color:"#4a6a74",lineHeight:1.6}}>
-                        Assumption: each replacement starts from new rail (greenfield). Cycle length = year of first replacement. Partial final cycle: grinding costs prorated, no replacement charged if horizon ends before next replacement year.
-                      </div>
-                    </div>
-                  );
-                })()}
-
                 <div style={{marginTop:10,fontSize:11,color:"#4a6a74"}}>
                   Rates are live from your configuration: grinding ({grindRate.toFixed(0)} EUR/ml/pass) from the Grinding Cost tab, replacement ({replRate.toFixed(0)} EUR/ml) from the Replacement Cost tab. Adjust machine, mode, region or unit rates there and re-run comparison to update.
                 </div>
