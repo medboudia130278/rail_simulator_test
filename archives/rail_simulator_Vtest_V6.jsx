@@ -2215,30 +2215,11 @@ export default function App() {
       tableDivider(); y+=4;
 
       subTitle("1.2 Train Fleet");
-      var tCols = [{label:"Type",w:28},{label:"Mode",w:22},{label:"Passes/day",w:22,align:"right"},{label:"Axle load (t)",w:24,align:"right"},{label:"Bogies",w:16,align:"right"},{label:"Axles/bogie",w:22,align:"right"},{label:"MGT/yr",w:cw-134,align:"right"}];
+      var tCols = [{label:"Type",w:30},{label:"Passes/day",w:25,align:"right"},{label:"Axle load (t)",w:28,align:"right"},{label:"Bogies",w:20,align:"right"},{label:"Axles/bogie",w:25,align:"right"},{label:"MGT/yr",w:cw-128,align:"right"}];
       tableHeader(tCols);
       trains.forEach(function(tr,i){
-        var ppd = calcPassesPerDay(tr);
-        var mgt = (ppd*tr.axleLoad*tr.bogies*tr.axlesPerBogie*365/1e6).toFixed(2);
-        var mode = tr.mileageActive?"Mileage":tr.weekActive?"Weekly profile":"Manual";
-        tableRow(tCols,[tr.label,mode,ppd.toFixed(1),tr.axleLoad,tr.bogies,tr.axlesPerBogie,mgt],i%2===0);
-      });
-      // Weekly/mileage profile detail
-      trains.forEach(function(tr){
-        if(tr.weekActive && tr.weekProfile){
-          var wp=tr.weekProfile;
-          checkY(6);
-          doc.setFontSize(7); doc.setTextColor.apply(doc,MUTED);
-          doc.text("  "+tr.label+" weekly profile: Mon-Fri="+wp.weekday+" | Sat="+wp.saturday+" | Sun="+wp.sunday+" -> equiv "+calcPassesPerDay(tr).toFixed(1)+" passes/day", ml+2, y+4);
-          y+=6;
-        }
-        if(tr.mileageActive && tr.mileageProfile){
-          var mp=tr.mileageProfile;
-          checkY(6);
-          doc.setFontSize(7); doc.setTextColor.apply(doc,MUTED);
-          doc.text("  "+tr.label+" mileage: "+mp.fleetSize+" trains x "+mp.mileagePerTrain+"km/yr / "+mp.sectionKm+"km section -> "+calcPassesPerDay(tr).toFixed(1)+" passes/day", ml+2, y+4);
-          y+=6;
-        }
+        var mgt = ((tr.trainsPerDay*tr.axleLoad*tr.bogies*tr.axlesPerBogie*365)/1e6).toFixed(2);
+        tableRow(tCols,[tr.label,tr.trainsPerDay,tr.axleLoad,tr.bogies,tr.axlesPerBogie,mgt],i%2===0);
       });
       tableDivider();
       var totalMGT = calcMGT(trains).toFixed(2);
@@ -2329,21 +2310,20 @@ export default function App() {
       // COST SUMMARY PAGE
       // ==============================
       newPage();
-      sectionTitle("3. Lifecycle Cost Summary");
-      bodyText("Rates: grinding "+liveGrindRate.toFixed(0)+" EUR/ml/pass | replacement "+liveReplRate.toFixed(0)+" EUR/ml (from Grinding Cost and Replacement Cost tabs configuration).");
+      sectionTitle("3. Lifecycle Cost Summary (WEU Reference Rates)");
+      bodyText("Note: Costs are estimated using WEU reference rates (grinding: 22 EUR/ml/pass, replacement: 380 EUR/ml). For project-specific figures, use the Replacement Cost and Grinding Cost tabs.");
       y+=4;
 
       if(result) {
-        subTitle("3.1 First Cycle (to first replacement)");
         var costCols = [
-          {label:"Segment",w:35},
-          {label:"Grade",w:18},
-          {label:"Length (km)",w:22,align:"right"},
-          {label:"Repl. Yr",w:16,align:"right"},
-          {label:"Grindings",w:18,align:"right"},
-          {label:"Grind cost",w:26,align:"right"},
-          {label:"Repl. cost",w:26,align:"right"},
-          {label:"Total",w:cw-161,align:"right"},
+          {label:"Segment",w:38},
+          {label:"Grade",w:20},
+          {label:"Length (km)",w:24,align:"right"},
+          {label:"Repl. Yr",w:18,align:"right"},
+          {label:"Grindings",w:20,align:"right"},
+          {label:"Grind cost",w:28,align:"right"},
+          {label:"Repl. cost",w:28,align:"right"},
+          {label:"Total",w:cw-176,align:"right"},
         ];
         tableHeader(costCols);
         var grandGrind=0, grandRepl=0;
@@ -2351,8 +2331,8 @@ export default function App() {
           var grade = r.seg.grade||r.seg.railGrade||"R260";
           var lenMl = (r.seg.lengthKm||0)*1000;
           var passes = r.data?r.data.reduce(function(a,d){return a+d.ground;},0):0;
-          var gCost = lenMl*passes*liveGrindRate;
-          var rCost = r.repY?lenMl*liveReplRate:0;
+          var gCost = lenMl*passes*22;
+          var rCost = r.repY?lenMl*380:0;
           var tot   = gCost+rCost;
           grandGrind+=gCost; grandRepl+=rCost;
           tableRow(costCols,[
@@ -2367,166 +2347,31 @@ export default function App() {
         checkY(7);
         doc.setFontSize(8); doc.setFont("helvetica","bold");
         doc.setTextColor.apply(doc,TEAL);
-        doc.text("TOTAL FIRST CYCLE: "+fmt(grandGrind+grandRepl)+"  (Grinding: "+fmt(grandGrind)+" | Replacement: "+fmt(grandRepl)+")", ml+1, y+5);
-        doc.setFont("helvetica","normal"); y+=12;
-
-        subTitle("3.2 Full "+horizon+"-Year Horizon (greenfield at each replacement)");
-        var fhCols = [
-          {label:"Segment",w:35},
-          {label:"Repls",w:14,align:"right"},
-          {label:"Passes",w:16,align:"right"},
-          {label:"Grind cost",w:26,align:"right"},
-          {label:"Repl. cost",w:26,align:"right"},
-          {label:"Total "+horizon+"yr",w:cw-117,align:"right"},
-        ];
-        tableHeader(fhCols);
-        var fhGrandGrind=0, fhGrandRepl=0, fhGrandRepls=0;
-        result.results.forEach(function(r,i){
-          var lenMl = (r.seg.lengthKm||0)*1000;
-          var passes = r.data?r.data.reduce(function(a,d){return a+d.ground;},0):0;
-          var gCostCycle = lenMl*passes*liveGrindRate;
-          var rCostCycle = r.repY?lenMl*liveReplRate:0;
-          var repls=0, totGrind=0, totRepl=0, totPass=0, yr=0;
-          if(r.repY){
-            var cl2=r.repY;
-            while(yr+cl2<=horizon){yr+=cl2;repls+=1;totGrind+=gCostCycle;totRepl+=rCostCycle;totPass+=passes;}
-            var frac=(horizon-yr)/cl2;
-            if(frac>0){totGrind+=gCostCycle*frac;totPass+=Math.round(passes*frac);}
-          } else {
-            totGrind=gCostCycle; totPass=passes;
-          }
-          fhGrandGrind+=totGrind; fhGrandRepl+=totRepl; fhGrandRepls+=repls;
-          tableRow(fhCols,[
-            r.seg.label, repls, totPass,
-            fmt(totGrind), totRepl>0?fmt(totRepl):"-", fmt(totGrind+totRepl),
-          ],i%2===0);
-        });
-        tableDivider();
-        checkY(7);
-        doc.setFontSize(8); doc.setFont("helvetica","bold");
-        doc.setTextColor.apply(doc,TEAL);
-        doc.text("TOTAL "+horizon+"YR: "+fmt(fhGrandGrind+fhGrandRepl)+"  ("+fhGrandRepls+" replacements | Grinding: "+fmt(fhGrandGrind)+" | Replacement: "+fmt(fhGrandRepl)+")", ml+1, y+5);
+        doc.text("TOTAL LIFECYCLE COST: "+fmt(grandGrind+grandRepl)+"  (Grinding: "+fmt(grandGrind)+" | Replacement: "+fmt(grandRepl)+")", ml+1, y+5);
         doc.setFont("helvetica","normal"); y+=10;
       }
 
       // ==============================
-      // COMPARISON PAGE
+      // COMPARISON PAGE (if available)
       // ==============================
+      // Note: comparison result is inside ComparePanel state - not accessible here
+      // We include a placeholder with instructions
       newPage();
-      sectionTitle("4. Strategy Comparison: Preventive vs Corrective");
-
-      if(result) {
-        // Run both strategies using current params
-        var activeSegsForCmp = segs.filter(function(s){return s.active&&s.lengthKm>0;}).map(function(s){
-          var b=Object.assign({},s,{radius:s.repr,railGrade:s.grade});
-          if(isBF&&initCond[s.id]){var ic=initCond[s.id];b.initWearV=ic.wearV||0;b.initWearL=ic.wearL||0;b.initRCF=ic.rcf||0;}
-          return b;
-        });
-        var baseParams={context:context,trains:trains,segments:activeSegsForCmp,railType:railType,trackMode:trackMode,speed:speed,lubrication:lubr,horizonYears:horizon};
-        var rPrev=runSim(Object.assign({},baseParams,{strategy:"preventive"}));
-        var rCorr=runSim(Object.assign({},baseParams,{strategy:"corrective"}));
-
-        // Summary KPIs
-        var pRepls=rPrev.results.filter(function(r){return r.repY;}).length;
-        var cRepls=rCorr.results.filter(function(r){return r.repY;}).length;
-        var pGrinds=rPrev.results.reduce(function(a,r){return a+r.gCount;},0);
-        var cGrinds=rCorr.results.reduce(function(a,r){return a+r.gCount;},0);
-
-        kpiRow([
-          {label:"Replacements PREV", value:pRepls+" seg",     unit:"", color:TEAL},
-          {label:"Replacements CORR", value:cRepls+" seg",     unit:"", color:AMBER},
-          {label:"Grindings PREV",    value:pGrinds+" passes", unit:"", color:TEAL},
-          {label:"Grindings CORR",    value:cGrinds+" passes", unit:"", color:AMBER},
-        ]);
-
-        // First cycle comparison table
-        subTitle("4.1 First Cycle Comparison");
-        var cmpCols=[
-          {label:"Segment",w:32},
-          {label:"Repl.yr PREV",w:20,align:"right"},
-          {label:"Repl.yr CORR",w:20,align:"right"},
-          {label:"Delta yr",w:16,align:"right"},
-          {label:"Grind PREV",w:24,align:"right"},
-          {label:"Grind CORR",w:24,align:"right"},
-          {label:"Repl PREV",w:22,align:"right"},
-          {label:"Repl CORR",w:22,align:"right"},
-          {label:"Saving",w:cw-180,align:"right"},
-        ];
-        tableHeader(cmpCols);
-        var totPrev1=0, totCorr1=0;
-        rPrev.results.forEach(function(pr,i){
-          var cr=rCorr.results[i];
-          if(!cr)return;
-          var lenMl=(pr.seg.lengthKm||0)*1000;
-          var pPass=pr.data?pr.data.reduce(function(a,d){return a+d.ground;},0):0;
-          var cPass=cr.data?cr.data.reduce(function(a,d){return a+d.ground;},0):0;
-          var pG=lenMl*pPass*liveGrindRate, cG=lenMl*cPass*liveGrindRate;
-          var pR=pr.repY?lenMl*liveReplRate:0, cR=cr.repY?lenMl*liveReplRate:0;
-          var pT=pG+pR, cT=cG+cR, sav=cT-pT;
-          totPrev1+=pT; totCorr1+=cT;
-          var dYr=(cr.repY||(horizon+1))-(pr.repY||(horizon+1));
-          tableRow(cmpCols,[
-            pr.seg.label,
-            pr.repY?"Yr "+pr.repY:">"+horizon+"yr",
-            cr.repY?"Yr "+cr.repY:">"+horizon+"yr",
-            dYr>0?"+"+dYr+"yr":dYr+"yr",
-            fmt(pG), fmt(cG),
-            pR>0?fmt(pR):"-", cR>0?fmt(cR):"-",
-            (sav>0?"+":"")+fmt(sav),
-          ],i%2===0);
-        });
-        tableDivider();
-        checkY(8);
-        doc.setFontSize(8); doc.setFont("helvetica","bold");
-        doc.setTextColor.apply(doc,(totCorr1-totPrev1)>0?TEAL:WARN);
-        doc.text("FIRST CYCLE - PREV: "+fmt(totPrev1)+" | CORR: "+fmt(totCorr1)+" | Saving: "+((totCorr1-totPrev1)>0?"+":"")+fmt(totCorr1-totPrev1), ml+1, y+5);
-        doc.setFont("helvetica","normal"); y+=12;
-
-        // Full horizon comparison table
-        subTitle("4.2 Full "+horizon+"-Year Horizon Comparison");
-        tableHeader(cmpCols);
-        var totPrevFH=0, totCorrFH=0;
-        rPrev.results.forEach(function(pr,i){
-          var cr=rCorr.results[i];
-          if(!cr)return;
-          var lenMl=(pr.seg.lengthKm||0)*1000;
-          var pPass=pr.data?pr.data.reduce(function(a,d){return a+d.ground;},0):0;
-          var cPass=cr.data?cr.data.reduce(function(a,d){return a+d.ground;},0):0;
-          var pGCyc=lenMl*pPass*liveGrindRate, cGCyc=lenMl*cPass*liveGrindRate;
-          var pRCyc=pr.repY?lenMl*liveReplRate:0, cRCyc=cr.repY?lenMl*liveReplRate:0;
-          function fhCalc(repY,gCyc,rCyc){
-            if(!repY)return{g:gCyc,r:0,repls:0};
-            var yr=0,g=0,r=0,repls=0;
-            while(yr+repY<=horizon){yr+=repY;repls++;g+=gCyc;r+=rCyc;}
-            var frac=(horizon-yr)/repY;
-            if(frac>0)g+=gCyc*frac;
-            return{g:g,r:r,repls:repls};
-          }
-          var pfh=fhCalc(pr.repY,pGCyc,pRCyc);
-          var cfh=fhCalc(cr.repY,cGCyc,cRCyc);
-          var pT=pfh.g+pfh.r, cT=cfh.g+cfh.r, sav=cT-pT;
-          totPrevFH+=pT; totCorrFH+=cT;
-          var dYr=(cr.repY||(horizon+1))-(pr.repY||(horizon+1));
-          tableRow(cmpCols,[
-            pr.seg.label+" ("+pfh.repls+"r vs "+cfh.repls+"r)",
-            pr.repY?"Yr "+pr.repY:">"+horizon+"yr",
-            cr.repY?"Yr "+cr.repY:">"+horizon+"yr",
-            dYr>0?"+"+dYr+"yr":dYr+"yr",
-            fmt(pfh.g), fmt(cfh.g),
-            pfh.r>0?fmt(pfh.r):"-", cfh.r>0?fmt(cfh.r):"-",
-            (sav>0?"+":"")+fmt(sav),
-          ],i%2===0);
-        });
-        tableDivider();
-        checkY(8);
-        doc.setFontSize(8); doc.setFont("helvetica","bold");
-        doc.setTextColor.apply(doc,(totCorrFH-totPrevFH)>0?TEAL:WARN);
-        doc.text(horizon+"YR - PREV: "+fmt(totPrevFH)+" | CORR: "+fmt(totCorrFH)+" | Saving: "+((totCorrFH-totPrevFH)>0?"+":"")+fmt(totCorrFH-totPrevFH), ml+1, y+5);
-        doc.setFont("helvetica","normal"); y+=10;
-        bodyText("Assumption: each replacement starts from new rail (greenfield). Partial final cycle: grinding prorated, no replacement if horizon ends before next rail change.");
-      } else {
-        bodyText("Run the simulation first, then export the report to include comparison data.");
-      }
+      sectionTitle("4. Strategy Comparison Summary");
+      bodyText("Run the Strategy Comparison in the simulator to compare Preventive vs Corrective strategies for this project. Key metrics to compare:");
+      y+=2;
+      var cmpItems = [
+        ["Rail life extension","Preventive strategy typically extends rail life by 50-100% vs corrective"],
+        ["Grinding cost","Preventive requires more passes but at lower removal depth per pass"],
+        ["Replacement cost","Preventive reduces replacement frequency, often offsetting higher grinding cost"],
+        ["Total lifecycle","For most heavy-use segments, preventive is cost-optimal above ~15 MGT/yr"],
+        ["Metal reserve","Corrective strategy consumes 0.55mm/pass vs 0.20mm/pass for preventive"],
+      ];
+      var cmpCols = [{label:"Factor",w:40},{label:"Description",w:cw-40}];
+      tableHeader(cmpCols);
+      cmpItems.forEach(function(row,i){ tableRow(cmpCols,row,i%2===0); });
+      tableDivider(); y+=6;
+      bodyText("Quantitative comparison is available in the Strategy Comparison tab of the simulator. Re-run and record the delta cost from the Lifecycle Cost table for this project.");
 
       // ==============================
       // DISCLAIMER + SOURCES PAGE
