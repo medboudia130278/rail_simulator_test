@@ -1323,6 +1323,7 @@ function ComparePanel(props) {
   const [aidx,       setAi]     = useState(0);
   const [chartTab,   setChTab]  = useState("wear");
   const [cmpParamsHash, setCmpHash] = useState(null);
+  const [kpiView,    setKpiView]= useState("first"); // "first" or "full"
 
   // Hash excludes strategy  - comparison always runs both regardless
   var paramsHash = params ? JSON.stringify({
@@ -1475,31 +1476,77 @@ function ComparePanel(props) {
 
       {hasComparison && (
         <div>
+          {/* KPI view toggle */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontSize:11,color:cl.dim}}>
+              {kpiView==="first"
+                ? "Showing first cycle values (to first replacement)"
+                : "Showing full "+horizon+"-year horizon values (all cycles)"}
+            </div>
+            <div style={{display:"flex",gap:0,border:"1px solid rgba(125,211,200,0.25)",borderRadius:6,overflow:"hidden"}}>
+              <div onClick={function(){setKpiView("first");}}
+                style={{padding:"5px 14px",fontSize:11,fontWeight:600,cursor:"pointer",
+                  background:kpiView==="first"?cl.teal:"transparent",
+                  color:kpiView==="first"?"#0d1f26":cl.dim}}>
+                First cycle
+              </div>
+              <div onClick={function(){setKpiView("full");}}
+                style={{padding:"5px 14px",fontSize:11,fontWeight:600,cursor:"pointer",
+                  background:kpiView==="full"?cl.teal:"transparent",
+                  color:kpiView==="full"?"#0d1f26":cl.dim,
+                  borderLeft:"1px solid rgba(125,211,200,0.25)"}}>
+                Full {horizon}-year horizon
+              </div>
+            </div>
+          </div>
+
           {/* KPI cards */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:16}}>
-            {[
-              ["Replacements",     prevRepls+" segments",                                           corrRepls+" segments",                                           prevRepls<=corrRepls?"preventive":"corrective"],
-              ["Total grindings",  prevResult.results.reduce(function(a,r){return a+r.gCount;},0)+" passes", corrResult.results.reduce(function(a,r){return a+r.gCount;},0)+" passes", "preventive"],
-              ["Grind cost (est.)",fmt(segData.reduce(function(a,s){return a+s.pGrindCost;},0)),   fmt(segData.reduce(function(a,s){return a+s.cGrindCost;},0)),   "corrective"],
-              ["Lifecycle (est.)", fmt(totalPrev),                                                  fmt(totalCorr),                                                  totalPrev<=totalCorr?"preventive":"corrective"],
-            ].map(function(item,i){
-              var winner=item[3];
-              return (
-                <div key={i} style={{background:"rgba(0,0,0,0.2)",borderRadius:10,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.06)"}}>
-                  <div style={{fontSize:10,color:cl.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{item[0]}</div>
-                  <div style={{display:"flex",gap:8}}>
-                    <div style={{flex:1,padding:"6px 10px",borderRadius:6,background:winner==="preventive"?"rgba(125,211,200,0.12)":"rgba(255,255,255,0.03)",border:"1px solid "+(winner==="preventive"?"rgba(125,211,200,0.3)":"rgba(255,255,255,0.06)")}}>
-                      <div style={{fontSize:9,color:cl.teal,fontWeight:700,textTransform:"uppercase",marginBottom:3}}>Preventive</div>
-                      <div style={{fontSize:14,fontWeight:700,color:cl.teal,fontFamily:"monospace"}}>{item[1]}</div>
-                    </div>
-                    <div style={{flex:1,padding:"6px 10px",borderRadius:6,background:winner==="corrective"?"rgba(251,191,36,0.12)":"rgba(255,255,255,0.03)",border:"1px solid "+(winner==="corrective"?"rgba(251,191,36,0.3)":"rgba(255,255,255,0.06)")}}>
-                      <div style={{fontSize:9,color:cl.amber,fontWeight:700,textTransform:"uppercase",marginBottom:3}}>Corrective</div>
-                      <div style={{fontSize:14,fontWeight:700,color:cl.amber,fontFamily:"monospace"}}>{item[2]}</div>
+            {(function(){
+              var fhReplsP = fullHorizonData.reduce(function(a,r){return a+r.pRepls;},0);
+              var fhReplsC = fullHorizonData.reduce(function(a,r){return a+r.cRepls;},0);
+              var fhPassP  = fullHorizonData.reduce(function(a,r){return a+r.pPass;},0);
+              var fhPassC  = fullHorizonData.reduce(function(a,r){return a+r.cPass;},0);
+              var fhGrindP = fullHorizonData.reduce(function(a,r){return a+r.pGrind;},0);
+              var fhGrindC = fullHorizonData.reduce(function(a,r){return a+r.cGrind;},0);
+              var isFirst  = kpiView==="first";
+              var items = [
+                ["Replacements",
+                  isFirst?(prevRepls+" segments"):(fhReplsP+" replacements"),
+                  isFirst?(corrRepls+" segments"):(fhReplsC+" replacements"),
+                  isFirst?(prevRepls<=corrRepls?"preventive":"corrective"):(fhReplsP<=fhReplsC?"preventive":"corrective")],
+                ["Total grindings",
+                  isFirst?(prevResult.results.reduce(function(a,r){return a+r.gCount;},0)+" passes"):(fhPassP+" passes"),
+                  isFirst?(corrResult.results.reduce(function(a,r){return a+r.gCount;},0)+" passes"):(fhPassC+" passes"),
+                  "preventive"],
+                ["Grind cost",
+                  isFirst?fmt(segData.reduce(function(a,s){return a+s.pGrindCost;},0)):fmt(fhGrindP),
+                  isFirst?fmt(segData.reduce(function(a,s){return a+s.cGrindCost;},0)):fmt(fhGrindC),
+                  "corrective"],
+                ["Lifecycle cost",
+                  isFirst?fmt(totalPrev):fmt(fhTotalPrev),
+                  isFirst?fmt(totalCorr):fmt(fhTotalCorr),
+                  isFirst?(totalPrev<=totalCorr?"preventive":"corrective"):(fhTotalPrev<=fhTotalCorr?"preventive":"corrective")],
+              ];
+              return items.map(function(item,i){
+                var winner=item[3];
+                return (
+                  <div key={i} style={{background:"rgba(0,0,0,0.2)",borderRadius:10,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.06)"}}>
+                    <div style={{fontSize:10,color:cl.muted,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>{item[0]}</div>
+                    <div style={{display:"flex",gap:8}}>
+                      <div style={{flex:1,padding:"6px 10px",borderRadius:6,background:winner==="preventive"?"rgba(125,211,200,0.12)":"rgba(255,255,255,0.03)",border:"1px solid "+(winner==="preventive"?"rgba(125,211,200,0.3)":"rgba(255,255,255,0.06)")}}>
+                        <div style={{fontSize:9,color:cl.teal,fontWeight:700,textTransform:"uppercase",marginBottom:3}}>Preventive</div>
+                        <div style={{fontSize:13,fontWeight:700,color:cl.teal,fontFamily:"monospace"}}>{item[1]}</div>
+                      </div>
+                      <div style={{flex:1,padding:"6px 10px",borderRadius:6,background:winner==="corrective"?"rgba(251,191,36,0.12)":"rgba(255,255,255,0.03)",border:"1px solid "+(winner==="corrective"?"rgba(251,191,36,0.3)":"rgba(255,255,255,0.06)")}}>
+                        <div style={{fontSize:9,color:cl.amber,fontWeight:700,textTransform:"uppercase",marginBottom:3}}>Corrective</div>
+                        <div style={{fontSize:13,fontWeight:700,color:cl.amber,fontFamily:"monospace"}}>{item[2]}</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
 
           {/* Saving banner */}
