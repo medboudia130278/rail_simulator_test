@@ -3203,6 +3203,75 @@ export default function App() {
                       </table>
                     </div>
                   </div>
+
+                  {/* Full horizon summary table */}
+                  <div style={{background:"rgba(0,0,0,0.15)",borderRadius:10,border:"1px solid rgba(125,211,200,0.1)",marginTop:12}}>
+                    <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)",fontSize:11,letterSpacing:2,color:cl.teal,textTransform:"uppercase",fontWeight:700}}>Summary - All segments (full {horizon}-year horizon)</div>
+                    <div style={{overflowX:"auto"}}>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                        <thead><tr style={{background:"rgba(0,0,0,0.2)"}}>{["Segment","Grade","Replacements","Total grindings","Grind cost","Repl. cost","Lifecycle total"].map(function(h){return <th key={h} style={{padding:"8px 12px",textAlign:"left",color:cl.teal,fontWeight:600,fontSize:10,letterSpacing:1}}>{h}</th>;})}</tr></thead>
+                        <tbody>
+                          {result.results.map(function(r,i){
+                            var lenMl=(r.seg.lengthKm||0)*1000;
+                            var passes=r.data?r.data.reduce(function(a,d){return a+d.ground;},0):0;
+                            var grade=r.seg.grade||r.seg.railGrade||"R260";
+                            var gOp=lenMl*passes*liveGrindCost.perMl;
+                            var gMob=liveGrindCost.mobilCostPerInt>0?(liveGrindCost.mobilPerInt?liveGrindCost.mobilCostPerInt*passes:liveGrindCost.mobilCostPerInt):0;
+                            var gCyc=gOp+gMob;
+                            var rCyc=r.repY?lenMl*calcReplRateForGrade(grade):0;
+                            var repls=0,totG=0,totR=0,totP=0,yr=0;
+                            if(r.repY){var cl2=r.repY;while(yr+cl2<=horizon){yr+=cl2;repls++;totG+=gCyc;totR+=rCyc;totP+=passes;}var frac=(horizon-yr)/cl2;if(frac>0){totG+=gCyc*frac;totP+=Math.round(passes*frac);}}
+                            else{totG=gCyc;totP=passes;}
+                            var tot=totG+totR;
+                            function fmtC(v){return v>=1e6?(v/1e6).toFixed(2)+"M EUR":v>=1e3?(v/1e3).toFixed(1)+"k EUR":v.toFixed(0)+" EUR";}
+                            return(
+                              <tr key={i} onClick={function(){setAi(i);}} style={{borderTop:"1px solid rgba(255,255,255,0.04)",cursor:"pointer",background:i%2===0?"rgba(125,211,200,0.02)":"transparent"}}>
+                                <td style={{padding:"8px 12px",color:"#e8f4f3",fontWeight:500}}>{r.seg.label}</td>
+                                <td style={{padding:"8px 12px",fontFamily:"monospace",color:cl.purple}}>{grade}</td>
+                                <td style={{padding:"8px 12px",fontFamily:"monospace",color:repls>0?cl.warn:cl.dim,fontWeight:700}}>{repls>0?repls+" repl.":"none"}</td>
+                                <td style={{padding:"8px 12px",fontFamily:"monospace"}}>{totP} passes</td>
+                                <td style={{padding:"8px 12px",fontFamily:"monospace"}}>{fmtC(totG)}</td>
+                                <td style={{padding:"8px 12px",fontFamily:"monospace"}}>{totR>0?fmtC(totR):"-"}</td>
+                                <td style={{padding:"8px 12px",fontFamily:"monospace",color:cl.teal,fontWeight:700}}>{fmtC(tot)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{borderTop:"2px solid rgba(125,211,200,0.2)",background:"rgba(125,211,200,0.05)"}}>
+                            {(function(){
+                              var tR=0,tP=0,tG=0,tRp=0,tT=0;
+                              result.results.forEach(function(r){
+                                var lenMl=(r.seg.lengthKm||0)*1000;
+                                var passes=r.data?r.data.reduce(function(a,d){return a+d.ground;},0):0;
+                                var grade=r.seg.grade||r.seg.railGrade||"R260";
+                                var gOp=lenMl*passes*liveGrindCost.perMl;
+                                var gMob=liveGrindCost.mobilCostPerInt>0?(liveGrindCost.mobilPerInt?liveGrindCost.mobilCostPerInt*passes:liveGrindCost.mobilCostPerInt):0;
+                                var gCyc=gOp+gMob;
+                                var rCyc=r.repY?lenMl*calcReplRateForGrade(grade):0;
+                                var repls=0,g=0,rp=0,tp=0,yr=0;
+                                if(r.repY){var cl2=r.repY;while(yr+cl2<=horizon){yr+=cl2;repls++;g+=gCyc;rp+=rCyc;tp+=passes;}var frac=(horizon-yr)/cl2;if(frac>0){g+=gCyc*frac;tp+=Math.round(passes*frac);}}
+                                else{g=gCyc;tp=passes;}
+                                tR+=repls;tP+=tp;tG+=g;tRp+=rp;tT+=g+rp;
+                              });
+                              function fmtC(v){return v>=1e6?(v/1e6).toFixed(2)+"M EUR":v>=1e3?(v/1e3).toFixed(1)+"k EUR":v.toFixed(0)+" EUR";}
+                              return [
+                                <td key="l" colSpan={2} style={{padding:"9px 12px",color:cl.teal,fontWeight:700,fontSize:12}}>TOTAL {horizon} YEARS</td>,
+                                <td key="r" style={{padding:"9px 12px",fontFamily:"monospace",color:cl.warn,fontWeight:700}}>{tR} repls</td>,
+                                <td key="p" style={{padding:"9px 12px",fontFamily:"monospace"}}>{tP} passes</td>,
+                                <td key="g" style={{padding:"9px 12px",fontFamily:"monospace",fontWeight:700}}>{fmtC(tG)}</td>,
+                                <td key="rp" style={{padding:"9px 12px",fontFamily:"monospace",fontWeight:700}}>{fmtC(tRp)}</td>,
+                                <td key="t" style={{padding:"9px 12px",fontFamily:"monospace",color:cl.teal,fontWeight:800,fontSize:13}}>{fmtC(tT)}</td>,
+                              ];
+                            })()}
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                    <div style={{padding:"8px 16px",fontSize:10,color:"#4a6a74"}}>
+                    <div style={{padding:"8px 16px",fontSize:10,color:"#4a6a74"}}>Greenfield at each replacement. Rates: {liveGrindCost.perMl.toFixed(0)} EUR/ml/pass op.{liveGrindCost.mobilCostPerInt>0?" + "+Math.round(liveGrindCost.mobilCostPerInt)+" EUR mobil":""} | {liveReplRate.toFixed(0)} EUR/ml replacement. Partial final cycle prorated.</div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
