@@ -668,7 +668,6 @@ function GrindPanel(props) {
   const [cLabour,    setCLabour]  = useState(null);
   const [cSpeedMlH,  setCSpeed]   = useState(null);
   const [showStones, setShowSt]   = useState(false);
-  const [stoneView,  setStoneView]= useState("first"); // "first" or "full"
   const [stonePriceEur, setStoneP]= useState(null);  // null = no price entered
   const [customStoneRates, setCstR]= useState(null); // null = use presets
 
@@ -796,14 +795,6 @@ function GrindPanel(props) {
     var stoneWt        = STONE_WEIGHT_KG[machineKey] || 1.4;
     var totalWeightKg  = totalStones * stoneWt;
     var totalCostStones = stonePriceEur !== null ? totalStones * stonePriceEur * fx : null;
-    // Full horizon: repeat cycles from greenfield
-    var repY2 = r.repY;
-    var passesH = 0;
-    if(repY2){var yr2=0;while(yr2+repY2<=horizon){yr2+=repY2;passesH+=passes;}var fr2=(horizon-yr2)/repY2;if(fr2>0)passesH+=Math.round(passes*fr2);}
-    else{passesH=passes;}
-    var totalStonesH  = stonesPerPass * passesH;
-    var totalWeightH  = totalStonesH * stoneWt;
-    var totalCostH    = stonePriceEur !== null ? totalStonesH * stonePriceEur * fx : null;
     return {
       seg:            r.seg,
       grade:          grade,
@@ -814,20 +805,12 @@ function GrindPanel(props) {
       totalStones:    totalStones,
       totalWeightKg:  totalWeightKg,
       totalCostStones: totalCostStones,
-      passesH:        passesH,
-      totalStonesH:   totalStonesH,
-      totalWeightH:   totalWeightH,
-      totalCostH:     totalCostH,
     };
   }).filter(Boolean) : [];
 
   var grandTotalStones = stoneRows.reduce(function(a,s){return a+s.totalStones;},0);
   var grandTotalStCost = stonePriceEur !== null
     ? stoneRows.reduce(function(a,s){return a+(s.totalCostStones||0);},0)
-    : null;
-  var grandTotalStonesH = stoneRows.reduce(function(a,s){return a+s.totalStonesH;},0);
-  var grandTotalStCostH = stonePriceEur !== null
-    ? stoneRows.reduce(function(a,s){return a+(s.totalCostH||0);},0)
     : null;
 
   var mobilOnce = calcGrindCostPerMl(getEffectiveMachine(), mode, region, nightHrs, 1, currency);
@@ -1152,42 +1135,33 @@ function GrindPanel(props) {
 
               {showStones && (
                 <div style={{padding:"14px 16px"}}>
-
-                  {/* View toggle */}
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                    <div style={{fontSize:11,color:cl.dim}}>{stoneView==="first"?"First cycle (to first replacement)":"Full "+horizon+"-year horizon (all cycles)"}</div>
-                    <div style={{display:"flex",gap:0,border:"1px solid rgba(125,211,200,0.25)",borderRadius:6,overflow:"hidden"}}>
-                      <div onClick={function(){setStoneView("first");}} style={{padding:"4px 12px",fontSize:11,fontWeight:600,cursor:"pointer",background:stoneView==="first"?cl.teal:"transparent",color:stoneView==="first"?"#0d1f26":cl.dim}}>First cycle</div>
-                      <div onClick={function(){setStoneView("full");}} style={{padding:"4px 12px",fontSize:11,fontWeight:600,cursor:"pointer",background:stoneView==="full"?cl.teal:"transparent",color:stoneView==="full"?"#0d1f26":cl.dim,borderLeft:"1px solid rgba(125,211,200,0.25)"}}>Full {horizon}yr</div>
-                    </div>
-                  </div>
-
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
                     <div style={{background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"10px 14px"}}>
                       <div style={{fontSize:10,color:cl.dim,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Stones / km / pass</div>
                       <div style={{fontSize:16,fontWeight:700,color:cl.teal,fontFamily:"monospace"}}>
-                        {stoneRows.length>0?(stoneRows.reduce(function(a,s){return a+s.ratePerKmPerPass*s.lengthKm;},0)/stoneRows.reduce(function(a,s){return a+s.lengthKm;},0)).toFixed(1):"--"}
+                        {stoneRows.length>0?(stoneRows.reduce(function(a,s){return a+s.ratePerKmPerPass*s.lengthKm;},0)/stoneRows.reduce(function(a,s){return a+s.lengthKm;},0)).toFixed(1):"-"}
                         <span style={{fontSize:11,fontWeight:400,marginLeft:4,color:cl.muted}}>stones/km/pass</span>
                       </div>
                       <div style={{fontSize:10,color:"#4a6a74",marginTop:4}}>weighted avg, both rails</div>
                     </div>
                     <div style={{background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"10px 14px"}}>
-                      <div style={{fontSize:10,color:cl.dim,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Total stones</div>
+                      <div style={{fontSize:10,color:cl.dim,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Total stones (horizon)</div>
                       <div style={{fontSize:16,fontWeight:700,color:cl.teal,fontFamily:"monospace"}}>
-                        {(stoneView==="first"?grandTotalStones:grandTotalStonesH).toFixed(0)}
+                        {grandTotalStones.toFixed(0)}
                         <span style={{fontSize:11,fontWeight:400,marginLeft:4,color:cl.muted}}>stones</span>
                       </div>
-                      <div style={{fontSize:10,color:"#4a6a74",marginTop:4}}>{((stoneView==="first"?grandTotalStones:grandTotalStonesH)*(STONE_WEIGHT_KG[machineKey]||1.4)/1000).toFixed(2)} t total weight</div>
+                      <div style={{fontSize:10,color:"#4a6a74",marginTop:4}}>{(grandTotalStones*(STONE_WEIGHT_KG[machineKey]||1.4)/1000).toFixed(1)} tonnes of abrasive</div>
                     </div>
                     <div style={{background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"10px 14px"}}>
-                      <div style={{fontSize:10,color:cl.dim,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Stone cost</div>
-                      {(stoneView==="first"?grandTotalStCost:grandTotalStCostH) !== null ? (
-                        <div style={{fontSize:16,fontWeight:700,color:cl.amber,fontFamily:"monospace"}}>{fmt(stoneView==="first"?grandTotalStCost:grandTotalStCostH)}</div>
+                      <div style={{fontSize:10,color:cl.dim,letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>Stone cost (total)</div>
+                      {grandTotalStCost !== null ? (
+                        <div style={{fontSize:16,fontWeight:700,color:cl.amber,fontFamily:"monospace"}}>{fmt(grandTotalStCost)}</div>
                       ) : (
                         <div style={{fontSize:12,color:"#4a6a74"}}>Enter unit price below</div>
                       )}
                     </div>
                   </div>
+
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
                     <div>
                       <Lbl>Unit price per stone (optional)</Lbl>
@@ -1234,37 +1208,31 @@ function GrindPanel(props) {
                       <thead>
                         <tr style={{background:"rgba(255,255,255,0.03)"}}>
                           {["Segment","Grade","Length","Passes","Rate (stones/km/pass)","Stones/pass","Total stones","Weight (kg)","Stone cost"].map(function(h){
-                            return <th key={h} style={{padding:"8px 12px",textAlign:"left",color:cl.dim,fontWeight:600,fontSize:10,letterSpacing:1}}>{h}</th>;
+                            return <th key={h} style={{padding:"8px 12px",textAlign:"left",color:cl.dim,fontWeight:600,whiteSpace:"nowrap",fontSize:11}}>{h}</th>;
                           })}
                         </tr>
                       </thead>
                       <tbody>
-                        {stoneRows.map(function(s,i){
-                          var passes    = stoneView==="first" ? s.passes    : s.passesH;
-                          var totSt     = stoneView==="first" ? s.totalStones    : s.totalStonesH;
-                          var totWt     = stoneView==="first" ? s.totalWeightKg  : s.totalWeightH;
-                          var totCost   = stoneView==="first" ? s.totalCostStones: s.totalCostH;
-                          return(
-                          <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.04)",background:i%2===0?"rgba(125,211,200,0.02)":"transparent"}}>
+                        {stoneRows.map(function(s,i){return(
+                          <tr key={i} style={{borderTop:"1px solid rgba(255,255,255,0.04)"}}>
                             <td style={{padding:"8px 12px",color:"#e8f4f3",fontWeight:500}}>{s.seg.label}</td>
                             <td style={{padding:"8px 12px",fontFamily:"monospace",color:cl.purple}}>{s.grade}</td>
                             <td style={{padding:"8px 12px",fontFamily:"monospace"}}>{s.lengthKm.toFixed(1)} km</td>
-                            <td style={{padding:"8px 12px",fontFamily:"monospace",color:cl.teal}}>{passes}</td>
+                            <td style={{padding:"8px 12px",fontFamily:"monospace",color:cl.teal}}>{s.passes}</td>
                             <td style={{padding:"8px 12px",fontFamily:"monospace"}}>{s.ratePerKmPerPass.toFixed(1)}</td>
                             <td style={{padding:"8px 12px",fontFamily:"monospace"}}>{s.stonesPerPass.toFixed(0)}</td>
-                            <td style={{padding:"8px 12px",fontFamily:"monospace",color:cl.teal,fontWeight:700}}>{totSt.toFixed(0)}</td>
-                            <td style={{padding:"8px 12px",fontFamily:"monospace"}}>{totWt.toFixed(0)} kg</td>
-                            <td style={{padding:"8px 12px",fontFamily:"monospace",color:cl.amber}}>{totCost!==null?fmt(totCost):"-"}</td>
+                            <td style={{padding:"8px 12px",fontFamily:"monospace",color:cl.teal,fontWeight:700}}>{s.totalStones.toFixed(0)}</td>
+                            <td style={{padding:"8px 12px",fontFamily:"monospace"}}>{s.totalWeightKg.toFixed(0)} kg</td>
+                            <td style={{padding:"8px 12px",fontFamily:"monospace",color:cl.amber}}>{s.totalCostStones!==null?fmt(s.totalCostStones):"-"}</td>
                           </tr>
-                          );
-                        })}
+                        );})}
                       </tbody>
                       <tfoot>
                         <tr style={{borderTop:"2px solid rgba(125,211,200,0.2)",background:"rgba(125,211,200,0.04)"}}>
-                          <td colSpan={6} style={{padding:"10px 12px",color:cl.teal,fontWeight:700,fontSize:12}}>TOTAL {stoneView==="first"?"(first cycle)":"("+horizon+"yr)"}</td>
-                          <td style={{padding:"10px 12px",fontFamily:"monospace",color:cl.teal,fontWeight:800,fontSize:13}}>{(stoneView==="first"?grandTotalStones:grandTotalStonesH).toFixed(0)} stones</td>
-                          <td style={{padding:"10px 12px",fontFamily:"monospace",color:cl.teal,fontWeight:700}}>{((stoneView==="first"?grandTotalStones:grandTotalStonesH)*(STONE_WEIGHT_KG[machineKey]||1.4)/1000).toFixed(2)} t</td>
-                          <td style={{padding:"10px 12px",fontFamily:"monospace",color:cl.amber,fontWeight:700}}>{(stoneView==="first"?grandTotalStCost:grandTotalStCostH)!==null?fmt(stoneView==="first"?grandTotalStCost:grandTotalStCostH):"-"}</td>
+                          <td colSpan={6} style={{padding:"10px 12px",color:cl.teal,fontWeight:700,fontSize:12}}>TOTAL</td>
+                          <td style={{padding:"10px 12px",fontFamily:"monospace",color:cl.teal,fontWeight:800,fontSize:14}}>{grandTotalStones.toFixed(0)}</td>
+                          <td style={{padding:"10px 12px",fontFamily:"monospace",color:cl.teal,fontWeight:700}}>{(grandTotalStones*(STONE_WEIGHT_KG[machineKey]||1.4)).toFixed(0)} kg</td>
+                          <td style={{padding:"10px 12px",fontFamily:"monospace",color:cl.amber,fontWeight:700}}>{grandTotalStCost!==null?fmt(grandTotalStCost):"-"}</td>
                         </tr>
                       </tfoot>
                     </table>
