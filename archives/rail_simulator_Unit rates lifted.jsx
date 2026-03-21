@@ -72,11 +72,11 @@ var CURRENCIES = {
 };
 var REGIONS = {
   WEU:   {label:"Western Europe (FR/DE/UK/NL)",  lbr:{foreman:75,tech:58,welder:65,mach:62},   mat:{R260:1100,R320Cr:1280,R350HT:1380,R400HT:1520}, eqp:{tamper:850,rr:420,crane:680,truck:280,grinder:520}, weld:{thermit:380,flash:520}, prod:{rem:8,lay:6,tamp:12}, team:{foreman:1,tech:4,welder:2,mach:2}, ovhd:0.18},
-  EEU:   {label:"Eastern Europe (PL/RO/CZ/HU)",  lbr:{foreman:35,tech:25,welder:30,mach:28},   mat:{R260:1050,R320Cr:1220,R350HT:1320,R400HT:1450}, eqp:{tamper:750,rr:380,crane:580,truck:240,grinder:450}, weld:{thermit:280,flash:420}, prod:{rem:9,lay:7,tamp:13}, team:{foreman:1,tech:4,welder:2,mach:2}, ovhd:0.14},
-  MENA:  {label:"North Africa / Middle East",     lbr:{foreman:20,tech:12,welder:16,mach:14},   mat:{R260:1200,R320Cr:1380,R350HT:1500,R400HT:1650}, eqp:{tamper:900,rr:450,crane:700,truck:300,grinder:580}, weld:{thermit:320,flash:460}, prod:{rem:7,lay:5,tamp:10}, team:{foreman:1,tech:5,welder:2,mach:2}, ovhd:0.16},
-  SSA:   {label:"Sub-Saharan Africa",             lbr:{foreman:15,tech:8, welder:12,mach:10},   mat:{R260:1300,R320Cr:1500,R350HT:1620,R400HT:1780}, eqp:{tamper:950,rr:480,crane:720,truck:320,grinder:600}, weld:{thermit:350,flash:500}, prod:{rem:6,lay:4,tamp:9},  team:{foreman:1,tech:6,welder:2,mach:2}, ovhd:0.2},
-  SEA:   {label:"South / South-East Asia",        lbr:{foreman:18,tech:9, welder:13,mach:11},   mat:{R260:950, R320Cr:1100,R350HT:1200,R400HT:1320}, eqp:{tamper:780,rr:400,crane:620,truck:260,grinder:500}, weld:{thermit:290,flash:420}, prod:{rem:8,lay:6,tamp:11}, team:{foreman:1,tech:5,welder:2,mach:2}, ovhd:0.12},
-  LATAM: {label:"Latin America",                  lbr:{foreman:22,tech:13,welder:18,mach:15},   mat:{R260:1050,R320Cr:1220,R350HT:1320,R400HT:1450}, eqp:{tamper:820,rr:410,crane:640,truck:270,grinder:520}, weld:{thermit:300,flash:440}, prod:{rem:7,lay:5,tamp:10}, team:{foreman:1,tech:5,welder:2,mach:2}, ovhd:0.15},
+  EEU:   {label:"Eastern Europe (PL/RO/CZ/HU)",  lbr:{foreman:35,tech:25,welder:30,mach:28},   mat:{R260:1050,R320Cr:1220,R350HT:1320,R400HT:1450}, eqp:{tamper:750,rr:380,crane:580,truck:240,grinder:450}, weld:{thermit:280,flash:420}, prod:{rem:9,lay:7,tamp:13}, team:{foreman:1,tech:4,welder:2,mach:2}, ovhd:0.15},
+  MENA:  {label:"North Africa / Middle East",     lbr:{foreman:20,tech:12,welder:16,mach:14},   mat:{R260:1200,R320Cr:1380,R350HT:1500,R400HT:1650}, eqp:{tamper:900,rr:450,crane:700,truck:300,grinder:580}, weld:{thermit:320,flash:460}, prod:{rem:7,lay:5,tamp:10}, team:{foreman:1,tech:5,welder:2,mach:2}, ovhd:0.20},
+  SSA:   {label:"Sub-Saharan Africa",             lbr:{foreman:15,tech:8, welder:12,mach:10},   mat:{R260:1300,R320Cr:1500,R350HT:1620,R400HT:1780}, eqp:{tamper:950,rr:480,crane:720,truck:320,grinder:600}, weld:{thermit:350,flash:500}, prod:{rem:6,lay:4,tamp:9},  team:{foreman:1,tech:6,welder:2,mach:2}, ovhd:0.22},
+  SEA:   {label:"South / South-East Asia",        lbr:{foreman:18,tech:9, welder:13,mach:11},   mat:{R260:950, R320Cr:1100,R350HT:1200,R400HT:1320}, eqp:{tamper:780,rr:400,crane:620,truck:260,grinder:500}, weld:{thermit:290,flash:420}, prod:{rem:8,lay:6,tamp:11}, team:{foreman:1,tech:5,welder:2,mach:2}, ovhd:0.16},
+  LATAM: {label:"Latin America",                  lbr:{foreman:22,tech:13,welder:18,mach:15},   mat:{R260:1050,R320Cr:1220,R350HT:1320,R400HT:1450}, eqp:{tamper:820,rr:410,crane:640,truck:270,grinder:520}, weld:{thermit:300,flash:440}, prod:{rem:7,lay:5,tamp:10}, team:{foreman:1,tech:5,welder:2,mach:2}, ovhd:0.18},
   CUSTOM:{label:"Custom / Manual input",          lbr:{foreman:50,tech:40,welder:50,mach:45},   mat:{R260:1100,R320Cr:1280,R350HT:1380,R400HT:1520}, eqp:{tamper:800,rr:400,crane:650,truck:260,grinder:500}, weld:{thermit:350,flash:480}, prod:{rem:8,lay:6,tamp:12}, team:{foreman:1,tech:4,welder:2,mach:2}, ovhd:0.18},
 };
 var RAIL_KGM = {R200:49,R260:60,R320Cr:60,R350HT:60,R400HT:60};
@@ -329,9 +329,9 @@ function CostPanel(props) {
   var simResult=props.simResult, horizon=props.horizon;
   const [region,    setRegion]   = useState(props.initRegion  || "WEU");
   const [currency,  setCurrency] = useState("EUR");
-  const [weldType,  setWeld]     = useState(props.initWeldType || "thermit");
+  const [weldType,  setWeld]     = useState("thermit");
   const [nightHrs,  setNight]    = useState(6);
-  const [jointSp,   setJoint]    = useState(props.initJointSp || 25);
+  const [jointSp,   setJoint]    = useState(25);
   const [ovhdPct,   setOvhd]     = useState(props.initOvhdPct || 18);
   const [withGrind, setGrind]    = useState(false);
   const [expL,      setEL]       = useState(false);
@@ -347,13 +347,6 @@ function CostPanel(props) {
 
   var base=REGIONS[region]||REGIONS.WEU;
   var p={lbr:cLbr||base.lbr, mat:cMat||base.mat, eqp:cEqp||base.eqp, weld:cWeld||base.weld, prod:cProd||base.prod, team:cTeam||base.team};
-
-  // Notify App of current full p object so Comparison uses live custom rates
-  function notifyReplParams(overrides) {
-    if(!props.onParamsChange) return;
-    var cur = Object.assign({lbr:cLbr||base.lbr, mat:cMat||base.mat, eqp:cEqp||base.eqp, weld:cWeld||base.weld, prod:cProd||base.prod, team:cTeam||base.team}, overrides||{});
-    props.onParamsChange({region:region, ovhdPct:ovhdPct, weldType:weldType, jointSp:jointSp, customP:cur});
-  }
   var sym=(CURRENCIES[currency]||CURRENCIES.EUR).symbol;
   var fx=(CURRENCIES[currency]||CURRENCIES.EUR).rate;
 
@@ -361,7 +354,7 @@ function CostPanel(props) {
     setRegion(r); setCLbr(null); setCMat(null); setCEqp(null); setCWeld(null); setCProd(null); setCTeam(null);
     var ovhd=Math.round((REGIONS[r]||REGIONS.WEU).ovhd*100);
     setOvhd(ovhd);
-    if(props.onParamsChange) props.onParamsChange({region:r, ovhdPct:ovhd, weldType:weldType, jointSp:jointSp, customP:null});
+    if(props.onParamsChange) props.onParamsChange({region:r, ovhdPct:ovhd});
   }
   function fmt(v){if(v>=1e6)return (v/1e6).toFixed(2)+"M "+sym;if(v>=1e3)return (v/1e3).toFixed(1)+"k "+sym;return v.toFixed(0)+" "+sym;}
 
@@ -425,10 +418,10 @@ function CostPanel(props) {
           <Sel value={currency} onChange={setCurrency} opts={Object.keys(CURRENCIES).map(function(k){return {v:k,l:CURRENCIES[k].label};})}/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-          <div><Lbl>Welding type</Lbl><Sel value={weldType} onChange={function(v){setWeld(v);if(props.onParamsChange)props.onParamsChange({region:region,ovhdPct:ovhdPct,weldType:v,jointSp:jointSp,customP:p});}} opts={[{v:"thermit",l:"Aluminothermic"},{v:"flash",l:"Flash butt"}]}/></div>
-          <div><Lbl>Joint spacing (m)</Lbl><Inp value={jointSp} onChange={function(v){setJoint(v);if(props.onParamsChange)props.onParamsChange({region:region,ovhdPct:ovhdPct,weldType:weldType,jointSp:v,customP:p});}} min={12} max={100}/></div>
+          <div><Lbl>Welding type</Lbl><Sel value={weldType} onChange={setWeld} opts={[{v:"thermit",l:"Aluminothermic"},{v:"flash",l:"Flash butt"}]}/></div>
+          <div><Lbl>Joint spacing (m)</Lbl><Inp value={jointSp} onChange={setJoint} min={12} max={100}/></div>
           <div><Lbl>Night window (h)</Lbl><Inp value={nightHrs} onChange={setNight} min={2} max={10} step={0.5}/></div>
-          <div><Lbl>Overhead (%)</Lbl><Inp value={ovhdPct} onChange={function(v){setOvhd(v);if(props.onParamsChange)props.onParamsChange({region:region,ovhdPct:v,weldType:weldType,jointSp:jointSp,customP:p});}} min={5} max={40}/></div>
+          <div><Lbl>Overhead (%)</Lbl><Inp value={ovhdPct} onChange={function(v){setOvhd(v);if(props.onParamsChange)props.onParamsChange({region:region,ovhdPct:v});}} min={5} max={40}/></div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,padding:"8px 10px",background:"rgba(255,255,255,0.03)",borderRadius:6}}>
           <div onClick={function(){setGrind(function(v){return !v;});}} style={{width:28,height:16,borderRadius:8,background:withGrind?cl.teal:"rgba(255,255,255,0.1)",position:"relative",cursor:"pointer",border:"1px solid "+(withGrind?cl.teal:"rgba(255,255,255,0.2)")}}>
@@ -443,13 +436,13 @@ function CostPanel(props) {
             {[["foreman","Foreman"],[" tech","Technician"],["welder","Welder"],["mach","Machinist"]].map(function(item){
               var k=item[0].trim(), lbl=item[1];
               var val=(cLbr||base.lbr)[k];
-              return iRow(lbl+" ("+sym+"/h)", val, sym+"/h", function(v){var nv=Object.assign({},(cLbr||base.lbr),{[k]:v});setCLbr(nv);notifyReplParams({lbr:nv});}, 1);
+              return iRow(lbl+" ("+sym+"/h)", val, sym+"/h", function(v){setCLbr(Object.assign({},(cLbr||base.lbr),{[k]:v}));}, 1);
             })}
             <div style={{marginTop:8,fontSize:11,color:cl.dim}}>Team size:</div>
             {[["foreman","Foreman"],["tech","Technicians"],["welder","Welders"],["mach","Machinists"]].map(function(item){
               var k=item[0], lbl=item[1];
               var val=(cTeam||base.team)[k];
-              return iRow(lbl, val, "persons", function(v){var nv=Object.assign({},(cTeam||base.team),{[k]:v});setCTeam(nv);notifyReplParams({team:nv});}, 1);
+              return iRow(lbl, val, "persons", function(v){setCTeam(Object.assign({},(cTeam||base.team),{[k]:v}));}, 1);
             })}
           </div>
         )}
@@ -459,7 +452,7 @@ function CostPanel(props) {
           <div>
             {["R260","R320Cr","R350HT","R400HT"].map(function(k){
               var val=(cMat||base.mat)[k]||0, kgm=RAIL_KGM[k]||60;
-              return iRow(k+" ("+kgm+"kg/m)", val, sym+"/t", function(v){var nv=Object.assign({},(cMat||base.mat),{[k]:v});setCMat(nv);notifyReplParams({mat:nv});}, 10);
+              return iRow(k+" ("+kgm+"kg/m)", val, sym+"/t", function(v){setCMat(Object.assign({},(cMat||base.mat),{[k]:v}));}, 10);
             })}
             <div style={{fontSize:10,color:cl.dim,marginTop:4}}>Material cost = price/t x kg/m x 2 rails</div>
           </div>
@@ -471,13 +464,13 @@ function CostPanel(props) {
             {[["tamper","Tamping machine"],["rr","Rail-road vehicle"],["crane","Track crane"],["truck","Logistics truck"],["grinder","Rail grinder"]].map(function(item){
               var k=item[0], lbl=item[1];
               var val=(cEqp||base.eqp)[k];
-              return iRow(lbl, val, sym+"/h", function(v){var nv=Object.assign({},(cEqp||base.eqp),{[k]:v});setCEqp(nv);notifyReplParams({eqp:nv});}, 10);
+              return iRow(lbl, val, sym+"/h", function(v){setCEqp(Object.assign({},(cEqp||base.eqp),{[k]:v}));}, 10);
             })}
             <div style={{marginTop:8,fontSize:11,color:cl.dim}}>Welding cost per joint:</div>
             {[["thermit","Aluminothermic"],["flash","Flash butt"]].map(function(item){
               var k=item[0], lbl=item[1];
               var val=(cWeld||base.weld)[k];
-              return iRow(lbl, val, sym+"/joint", function(v){var nv=Object.assign({},(cWeld||base.weld),{[k]:v});setCWeld(nv);notifyReplParams({weld:nv});}, 10);
+              return iRow(lbl, val, sym+"/joint", function(v){setCWeld(Object.assign({},(cWeld||base.weld),{[k]:v}));}, 10);
             })}
           </div>
         )}
@@ -488,7 +481,7 @@ function CostPanel(props) {
             {[["rem","Rail removal"],["lay","Rail laying"],["tamp","Tamping/geometry"]].map(function(item){
               var k=item[0], lbl=item[1];
               var val=(cProd||base.prod)[k];
-              return iRow(lbl, val, "ml/h", function(v){var nv=Object.assign({},(cProd||base.prod),{[k]:v});setCProd(nv);notifyReplParams({prod:nv});}, 0.5);
+              return iRow(lbl, val, "ml/h", function(v){setCProd(Object.assign({},(cProd||base.prod),{[k]:v}));}, 0.5);
             })}
             <div style={{fontSize:10,color:cl.dim,marginTop:4}}>Night efficiency factor: 70% applied automatically</div>
           </div>
@@ -2034,9 +2027,6 @@ export default function App() {
   // Lifted repl params (most impactful for comparison alignment)
   const [replRegion,    setReplRegion]  = useState("WEU");
   const [replOvhdPct,   setReplOvhd]   = useState(18);
-  const [replWeldType,  setReplWeld]   = useState("thermit");
-  const [replJointSp,   setReplJoint]  = useState(25);
-  const [replCustomP,   setReplCustomP]= useState(null); // full p object when custom rates set
 
   function addTrain(){setTr(function(t){return t.concat([{id:Date.now(),label:"Type "+String.fromCharCode(65+t.length),trainsPerDay:100,axleLoad:14,bogies:4,axlesPerBogie:2,weekActive:false,weekProfile:{weekday:100,saturday:70,sunday:40},mileageActive:false,mileageProfile:{fleetSize:10,mileagePerTrain:120000,sectionKm:10}}]);});}
   function delTrain(id){setTr(function(t){return t.filter(function(x){return x.id!==id;});});}
@@ -2077,16 +2067,16 @@ export default function App() {
   // Compute live replacement rate using lifted CostPanel params
   var liveReplRate = useMemo(function(){
     var reg = REGIONS[replRegion] || REGIONS.WEU;
-    var p = replCustomP || {lbr:reg.lbr, mat:reg.mat, eqp:reg.eqp, weld:reg.weld, prod:reg.prod, team:reg.team};
-    var c = calcCostPerMl(p, "R260", replWeldType, 6, "EUR", replOvhdPct, false, replJointSp);
+    var p = {lbr:reg.lbr, mat:reg.mat, eqp:reg.eqp, weld:reg.weld, prod:reg.prod, team:reg.team};
+    var c = calcCostPerMl(p, "R260", "thermit", 6, "EUR", replOvhdPct, false, 25);
     return c.total;
-  },[replRegion, replOvhdPct, replWeldType, replJointSp, replCustomP]);
+  },[replRegion, replOvhdPct]);
 
   // Grade-specific replacement rate calculator for ComparePanel
   function calcReplRateForGrade(grade) {
     var reg = REGIONS[replRegion] || REGIONS.WEU;
-    var p = replCustomP || {lbr:reg.lbr, mat:reg.mat, eqp:reg.eqp, weld:reg.weld, prod:reg.prod, team:reg.team};
-    var c = calcCostPerMl(p, grade||"R260", replWeldType, 6, "EUR", replOvhdPct, false, replJointSp);
+    var p = {lbr:reg.lbr, mat:reg.mat, eqp:reg.eqp, weld:reg.weld, prod:reg.prod, team:reg.team};
+    var c = calcCostPerMl(p, grade||"R260", "thermit", 6, "EUR", replOvhdPct, false, 25);
     return c.total;
   }
 
@@ -3168,7 +3158,7 @@ export default function App() {
                         </ResponsiveContainer>
                       </div>
                     )}
-                    {ctab==="cost"&&<CostPanel simResult={result} horizon={horizon} initRegion={replRegion} initOvhdPct={replOvhdPct} initWeldType={replWeldType} initJointSp={replJointSp} onParamsChange={function(p){if(p.region!==undefined)setReplRegion(p.region);if(p.ovhdPct!==undefined)setReplOvhd(p.ovhdPct);if(p.weldType!==undefined)setReplWeld(p.weldType);if(p.jointSp!==undefined)setReplJoint(p.jointSp);if(p.customP!==undefined)setReplCustomP(p.customP);}}/>}
+                    {ctab==="cost"&&<CostPanel simResult={result} horizon={horizon} initRegion={replRegion} initOvhdPct={replOvhdPct} onParamsChange={function(p){if(p.region!==undefined)setReplRegion(p.region);if(p.ovhdPct!==undefined)setReplOvhd(p.ovhdPct);}}/>}
                     {ctab==="grind"&&<GrindPanel simResult={result} horizon={horizon} context={context} initMachine={grindMachine} initMode={grindMode} initRegion={grindRegion} initNight={grindNight} initDist={grindDistKm} onParamsChange={function(p){
                       setGMachine(p.machineKey); setGMode(p.mode); setGRegion(p.region);
                       setGNight(p.nightHrs); setGDist(p.distKm);
