@@ -1059,7 +1059,7 @@ function GrindPanel(props) {
                       style={Object.assign({},iS,{width:"100%",textAlign:"right"})}/>
                     <span style={{fontSize:11,color:cl.muted}}>EUR/h/person</span>
                   </div>
-                  {(function(){var lr=cLabour!==null?cLabour:(machine.ownedRates.labour[region]||machine.ownedRates.labour.WEU);var tm=machine.ownedRates.team||2;var spd=cSpeedMlH!==null?cSpeedMlH:machine.speedMlH;return <div style={{fontSize:10,color:cl.teal,marginBottom:6,paddingLeft:148}}>Labour: <b>{lr.toFixed(0)} EUR/h/person</b>{" | "}Team cost: <b>{(lr*tm/spd).toFixed(2)} EUR/ml</b> ({tm} persons @ {spd} ml/h)</div>;})()} 
+                  {(function(){var lr=cLabour!==null?cLabour:(machine.ownedRates.labour[region]||machine.ownedRates.labour.WEU);var tm=machine.ownedRates.team||2;var spd=cSpeedMlH!==null?cSpeedMlH:machine.speedMlH;return <div style={{fontSize:10,color:cl.teal,marginBottom:6,paddingLeft:148}}>Team cost: <b>{(lr*tm/spd).toFixed(2)} EUR/ml</b> ({tm} persons @ {spd} ml/h)</div>;})()} 
                 </div>
               )}
 
